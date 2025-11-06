@@ -15,53 +15,49 @@ interface TaskCardProps {
   showParentTip?: boolean;
 }
 
-const themeStyles: Record<TaskTheme, { bg: string; icon: string; animation: string }> = {
+const themeStyles: Record<TaskTheme, { bg: string; icon: string }> = {
   morning: {
     bg: 'bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-50 dark:from-orange-950/40 dark:via-yellow-950/20 dark:to-pink-950/20',
     icon: '🌅',
-    animation: 'animate-float',
   },
   afternoon: {
     bg: 'bg-gradient-to-br from-yellow-100 via-amber-50 to-orange-50 dark:from-yellow-950/40 dark:via-amber-950/20 dark:to-orange-950/20',
     icon: '☀️',
-    animation: 'animate-pulse',
   },
   evening: {
     bg: 'bg-gradient-to-br from-purple-100 via-pink-50 to-orange-50 dark:from-purple-950/40 dark:via-pink-950/20 dark:to-orange-950/20',
     icon: '🌅',
-    animation: 'animate-fade-in',
   },
   night: {
     bg: 'bg-gradient-to-br from-indigo-900/80 via-purple-900/60 to-blue-900/80 dark:from-indigo-950 dark:via-purple-950 dark:to-blue-950',
     icon: '🌙',
-    animation: 'animate-breathe',
   },
 };
 
 const themeDecorations: Record<TaskTheme, JSX.Element> = {
   morning: (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-2 right-2 text-4xl opacity-70 animate-float">🌤️</div>
+      <div className="absolute top-2 right-2 text-4xl opacity-70">🌤️</div>
       <div className="absolute bottom-2 left-2 text-2xl opacity-50">🌸</div>
     </div>
   ),
   afternoon: (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-2 right-2 text-5xl opacity-80 animate-pulse">☀️</div>
+      <div className="absolute top-2 right-2 text-5xl opacity-80">☀️</div>
       <div className="absolute bottom-2 left-2 text-3xl opacity-60">🍎</div>
       <div className="absolute bottom-2 right-2 text-2xl opacity-50">🥗</div>
     </div>
   ),
   evening: (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-2 right-2 text-4xl opacity-70 animate-fade-in">🌆</div>
+      <div className="absolute top-2 right-2 text-4xl opacity-70">🌆</div>
       <div className="absolute bottom-2 left-2 text-2xl opacity-60">🌳</div>
       <div className="absolute top-1/2 right-4 text-xl opacity-40">🦋</div>
     </div>
   ),
   night: (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-2 right-2 text-4xl opacity-90 animate-breathe">🌙</div>
+      <div className="absolute top-2 right-2 text-4xl opacity-90">🌙</div>
       <div className="absolute top-4 left-4 text-xl opacity-70">⭐</div>
       <div className="absolute bottom-4 right-8 text-lg opacity-60">✨</div>
       <div className="absolute top-1/2 left-1/4 text-sm opacity-50">⭐</div>
@@ -85,9 +81,8 @@ export default function TaskCard({
 
   return (
     <Card className={cn(
-      'relative p-4 border-l-4 transition-all duration-300 hover:shadow-lg overflow-hidden',
+      'relative p-4 border-l-4 hover:shadow-lg overflow-hidden',
       styles.bg,
-      styles.animation,
       `border-l-${accentColor}`,
       isNightTheme && 'text-white'
     )}>

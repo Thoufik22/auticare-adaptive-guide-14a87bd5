@@ -10,8 +10,9 @@ import TaskCard, { TaskTheme } from './TaskCard';
 import MoodCheck from './MoodCheck';
 import AccessibilityControls from './AccessibilityControls';
 import ProgressChart from './ProgressChart';
+import MiniGames from './MiniGames';
 import { useProgressTracking } from '@/hooks/useProgressTracking';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface DashboardProps {
   role: 'individual' | 'parent' | 'clinician';
@@ -23,6 +24,7 @@ interface DashboardProps {
 export default function Dashboard({ role, result, metadata, onNavigateToCalmZone }: DashboardProps) {
   const schedule = getScheduleComplexity(result.severity);
   const { addEntry, history, getTrend } = useProgressTracking();
+  const [showGames, setShowGames] = useState(false);
   
   const severityColors = {
     low: 'mint',
@@ -39,6 +41,10 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
   useEffect(() => {
     addEntry(result, role);
   }, []);
+
+  if (showGames) {
+    return <MiniGames onBack={() => setShowGames(false)} />;
+  }
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
@@ -204,7 +210,11 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
           
           <div className="flex gap-3">
             {result.normalizedScore > 70 && (
-              <Button variant="outline" className="bg-lavender/10 border-lavender hover:bg-lavender/20">
+              <Button 
+                variant="outline" 
+                className="bg-lavender/10 border-lavender hover:bg-lavender/20"
+                onClick={() => setShowGames(true)}
+              >
                 <Gamepad2 className="w-4 h-4 mr-2" />
                 Play Games
               </Button>
