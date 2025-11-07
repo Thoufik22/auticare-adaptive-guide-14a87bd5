@@ -11,6 +11,8 @@ import MoodCheck from './MoodCheck';
 import AccessibilityControls from './AccessibilityControls';
 import ProgressChart from './ProgressChart';
 import MiniGames from './MiniGames';
+import { Reminders } from './Reminders';
+import { CommunityResources } from './CommunityResources';
 import { useProgressTracking } from '@/hooks/useProgressTracking';
 import { useEffect, useState } from 'react';
 
@@ -319,6 +321,12 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
 
             <ProgressChart history={history} trend={trend} />
           </div>
+        </div>
+
+        {/* Reminders and Community Resources */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <Reminders />
+          <CommunityResources severity={result.severity} />
         </div>
       </div>
     </div>

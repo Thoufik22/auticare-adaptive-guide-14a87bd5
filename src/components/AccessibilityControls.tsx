@@ -3,13 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Settings, Type, Contrast, Volume2 } from 'lucide-react';
+import { Settings, Type, Contrast, Volume2, Moon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function AccessibilityControls() {
   const [largeFont, setLargeFont] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const [darkTheme, setDarkTheme] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function AccessibilityControls() {
         const prefs = JSON.parse(stored);
         setLargeFont(prefs.largeFont || false);
         setHighContrast(prefs.highContrast || false);
-        setReduceMotion(prefs.reduceMotion || false);
+        setDarkTheme(prefs.darkTheme || false);
         setTtsEnabled(prefs.ttsEnabled || false);
       } catch (e) {
         console.error('Failed to parse accessibility preferences', e);
@@ -42,19 +42,19 @@ export default function AccessibilityControls() {
       root.classList.remove('high-contrast');
     }
 
-    if (reduceMotion) {
-      root.classList.add('reduce-motion');
+    if (darkTheme) {
+      root.classList.add('dark-theme');
     } else {
-      root.classList.remove('reduce-motion');
+      root.classList.remove('dark-theme');
     }
 
     localStorage.setItem('auticare_accessibility', JSON.stringify({
       largeFont,
       highContrast,
-      reduceMotion,
+      darkTheme,
       ttsEnabled,
     }));
-  }, [largeFont, highContrast, reduceMotion, ttsEnabled]);
+  }, [largeFont, highContrast, darkTheme, ttsEnabled]);
 
   return (
     <Popover>
@@ -100,15 +100,15 @@ export default function AccessibilityControls() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4" />
-                <Label htmlFor="reduce-motion" className="cursor-pointer">
-                  Reduce Motion
+                <Moon className="w-4 h-4" />
+                <Label htmlFor="dark-theme" className="cursor-pointer">
+                  Dark Theme
                 </Label>
               </div>
               <Switch
-                id="reduce-motion"
-                checked={reduceMotion}
-                onCheckedChange={setReduceMotion}
+                id="dark-theme"
+                checked={darkTheme}
+                onCheckedChange={setDarkTheme}
               />
             </div>
 
