@@ -13,6 +13,8 @@ import ProgressChart from './ProgressChart';
 import MiniGames from './MiniGames';
 import { Reminders } from './Reminders';
 import { CommunityResources } from './CommunityResources';
+import { Timer } from './Timer';
+import { RewardsDisplay } from './RewardsDisplay';
 import { useProgressTracking } from '@/hooks/useProgressTracking';
 import { useEffect, useState } from 'react';
 
@@ -323,11 +325,17 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
           </div>
         </div>
 
-        {/* Reminders and Community Resources */}
-        <div className="grid md:grid-cols-2 gap-6">
+        {/* Reminders, Timer, and Community Resources */}
+        <div className="grid md:grid-cols-3 gap-6">
           <Reminders />
+          <div className="space-y-6">
+            <Timer />
+          </div>
           <CommunityResources severity={result.severity} />
         </div>
+
+        {/* Rewards System */}
+        <RewardsDisplay />
       </div>
     </div>
   );

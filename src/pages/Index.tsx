@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Auth } from '@/components/Auth';
 import RoleSelection from '@/components/RoleSelection';
 import Questionnaire from '@/components/Questionnaire';
 import ResultModal from '@/components/ResultModal';
@@ -9,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { individualQuestions, parentQuestions, getQuestionWeights, ParentMetadata } from '@/data/questionBanks';
 import { calculateScore, ScoringResult, Answer, AnswerValue } from '@/utils/scoring';
 import { Sparkles } from 'lucide-react';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 type AppState = 'role-selection' | 'questionnaire' | 'results' | 'dashboard' | 'calm-zone';
 type Role = 'individual' | 'parent' | 'clinician';
@@ -19,14 +22,32 @@ export default function Index() {
   const [scoringResult, setScoringResult] = useState<ScoringResult | null>(null);
   const [parentMetadata, setParentMetadata] = useState<ParentMetadata | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handleAuthSuccess = (authenticatedUser: User, role: string) => {
+    setUser(authenticatedUser);
+    setIsAuthenticated(true);
+    setSelectedRole(role as Role);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setIsAuthenticated(false);
+    setSelectedRole(null);
+    setScoringResult(null);
+    setParentMetadata(null);
+    setAppState('role-selection');
+  };
 
   const handleRoleSelection = (role: Role) => {
     setSelectedRole(role);
     setAppState('questionnaire');
   };
 
-  const handleQuestionnaireComplete = (answers: Record<string, AnswerValue>, metadata?: ParentMetadata) => {
-    if (selectedRole === 'parent' && metadata) {
+  const handleQuestionnaireComplete = (answers: Record<string, AnswerValue>, metadata?: any) => {
+    if ((selectedRole === 'parent' || selectedRole === 'clinician') && metadata) {
       setParentMetadata(metadata);
     }
 
@@ -140,8 +161,20 @@ export default function Index() {
     setAppState('dashboard');
   };
 
+  // Show auth screen if not authenticated
+  if (!isAuthenticated) {
+    return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
   return (
     <div className="min-h-screen">
+      {/* Logout button */}
+      <div className="fixed top-4 left-4 z-50">
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
+
       {/* Demo Mode Toggle */}
       {appState === 'role-selection' && (
         <div className="fixed top-4 right-4 z-50 space-y-2">

@@ -6,15 +6,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Volume2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Volume2, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 import { Question, ParentMetadata } from '@/data/questionBanks';
 import { AnswerValue } from '@/utils/scoring';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface QuestionnaireProps {
   role: 'individual' | 'parent' | 'clinician';
   questions: Question[];
-  onComplete: (answers: Record<string, AnswerValue>, metadata?: ParentMetadata) => void;
+  onComplete: (answers: Record<string, AnswerValue>, metadata?: any) => void;
   onBack: () => void;
+}
+
+interface ClinicianMetadata {
+  childName: string;
+  childAge: string;
+  pronoun: string;
+  homeLanguage: string;
+  problemsFaced: string;
 }
 
 const answerOptions: { value: AnswerValue; label: string }[] = [
@@ -26,24 +36,89 @@ const answerOptions: { value: AnswerValue; label: string }[] = [
 ];
 
 export default function Questionnaire({ role, questions, onComplete, onBack }: QuestionnaireProps) {
-  const [currentStep, setCurrentStep] = useState(role === 'parent' ? 0 : 1);
+  const [currentStep, setCurrentStep] = useState(role !== 'individual' ? 0 : 1);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
   
   // Parent metadata state
-  const [metadata, setMetadata] = useState<ParentMetadata>({
+  const [metadata, setMetadata] = useState<ParentMetadata & { videoUrl?: string }>({
     childName: '',
     childAge: '',
     pronouns: '',
     homeLanguage: '',
     schoolType: '',
     diagnosedConditions: [],
+    videoUrl: '',
   });
 
-  const totalSteps = role === 'parent' ? questions.length + 1 : questions.length;
+  // Clinician metadata state
+  const [clinicianMetadata, setClinicianMetadata] = useState<ClinicianMetadata>({
+    childName: '',
+    childAge: '',
+    pronoun: '',
+    homeLanguage: '',
+    problemsFaced: '',
+  });
+
+  const totalSteps = role !== 'individual' ? questions.length + 1 : questions.length;
   const progress = (currentStep / totalSteps) * 100;
-  const currentQuestionIndex = role === 'parent' ? currentStep - 1 : currentStep - 1;
+  const currentQuestionIndex = role !== 'individual' ? currentStep - 1 : currentStep - 1;
   const currentQuestion = questions[currentQuestionIndex];
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Video must be under 20MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to upload videos",
+        variant: "destructive",
+      });
+      setUploading(false);
+      return;
+    }
+
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('assessment-videos')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      toast({
+        title: "Upload failed",
+        description: uploadError.message,
+        variant: "destructive",
+      });
+    } else {
+      const { data: { publicUrl } } = supabase.storage
+        .from('assessment-videos')
+        .getPublicUrl(filePath);
+      
+      setMetadata({ ...metadata, videoUrl: publicUrl });
+      toast({
+        title: "Success",
+        description: "Video uploaded successfully",
+      });
+    }
+
+    setUploading(false);
+  };
 
   const handleAnswer = (questionId: string, value: AnswerValue) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -51,7 +126,8 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
 
   const handleNext = () => {
     if (currentStep === totalSteps) {
-      onComplete(answers, role === 'parent' ? metadata : undefined);
+      const metadataToSend = role === 'parent' ? metadata : role === 'clinician' ? clinicianMetadata : undefined;
+      onComplete(answers, metadataToSend);
     } else {
       setCurrentStep((prev) => prev + 1);
       if (ttsEnabled && currentStep < totalSteps) {
@@ -83,8 +159,15 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
   };
 
   const canProceed = () => {
-    if (role === 'parent' && currentStep === 0) {
-      return metadata.childName && metadata.childAge;
+    if (currentStep === 0) {
+      if (role === 'parent') {
+        return metadata.childName && metadata.childAge;
+      }
+      if (role === 'clinician') {
+        return clinicianMetadata.childName && clinicianMetadata.childAge && 
+               clinicianMetadata.pronoun && clinicianMetadata.homeLanguage && 
+               clinicianMetadata.problemsFaced;
+      }
     }
     if (currentStep > 0 && currentStep <= questions.length) {
       return answers[currentQuestion?.id] !== undefined;
@@ -188,32 +271,111 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
 
               <div className="space-y-3">
                 <Label>Diagnosed Conditions (if any)</Label>
-                <div className="space-y-2">
-                  {['ADHD', 'Anxiety', 'Speech delay', 'Other developmental conditions'].map((condition) => (
-                    <div key={condition} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={condition}
-                        checked={metadata.diagnosedConditions.includes(condition)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setMetadata({
-                              ...metadata,
-                              diagnosedConditions: [...metadata.diagnosedConditions, condition],
-                            });
-                          } else {
-                            setMetadata({
-                              ...metadata,
-                              diagnosedConditions: metadata.diagnosedConditions.filter((c) => c !== condition),
-                            });
-                          }
-                        }}
-                      />
-                      <label htmlFor={condition} className="text-sm cursor-pointer">
-                        {condition}
-                      </label>
-                    </div>
-                  ))}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    {['ADHD', 'Anxiety', 'Speech delay', 'Other developmental conditions'].map((condition) => (
+                      <div key={condition} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={condition}
+                          checked={metadata.diagnosedConditions.includes(condition)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setMetadata({
+                                ...metadata,
+                                diagnosedConditions: [...metadata.diagnosedConditions, condition],
+                              });
+                            } else {
+                              setMetadata({
+                                ...metadata,
+                                diagnosedConditions: metadata.diagnosedConditions.filter((c) => c !== condition),
+                              });
+                            }
+                          }}
+                        />
+                        <label htmlFor={condition} className="text-sm cursor-pointer">
+                          {condition}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="videoUpload" className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      Upload Video (Optional)
+                    </Label>
+                    <Input
+                      id="videoUpload"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      disabled={uploading}
+                      className="cursor-pointer"
+                    />
+                    {uploading && <p className="text-xs text-muted-foreground">Uploading...</p>}
+                    {metadata.videoUrl && (
+                      <p className="text-xs text-green-600">✓ Video uploaded successfully</p>
+                    )}
+                  </div>
                 </div>
+              </div>
+            </div>
+          ) : role === 'clinician' && currentStep === 0 ? (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold">Child Information</h3>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clinician-childName">Child's Name *</Label>
+                  <Input
+                    id="clinician-childName"
+                    value={clinicianMetadata.childName}
+                    onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, childName: e.target.value })}
+                    placeholder="Enter child's name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="clinician-childAge">Child's Age *</Label>
+                  <Input
+                    id="clinician-childAge"
+                    value={clinicianMetadata.childAge}
+                    onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, childAge: e.target.value })}
+                    placeholder="e.g., 5 years"
+                  />
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clinician-pronoun">Pronoun *</Label>
+                  <Input
+                    id="clinician-pronoun"
+                    value={clinicianMetadata.pronoun}
+                    onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, pronoun: e.target.value })}
+                    placeholder="he/him, she/her, they/them"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="clinician-homeLanguage">Home Language *</Label>
+                  <Input
+                    id="clinician-homeLanguage"
+                    value={clinicianMetadata.homeLanguage}
+                    onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, homeLanguage: e.target.value })}
+                    placeholder="Primary language at home"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clinician-problemsFaced">Problems/Challenges Faced by Child *</Label>
+                <Input
+                  id="clinician-problemsFaced"
+                  value={clinicianMetadata.problemsFaced}
+                  onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, problemsFaced: e.target.value })}
+                  placeholder="Describe the challenges the child is facing"
+                />
               </div>
             </div>
           ) : currentQuestion ? (
