@@ -74,6 +74,23 @@ export function useRewards() {
         title: '🎉 Badge Unlocked!',
         description: `${badge.icon} ${badge.name}: ${badge.description}`,
       });
+      
+      // Send email notification
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        supabase.functions.invoke('send-notification', {
+          body: {
+            email: user.email,
+            type: 'achievement',
+            data: {
+              title: badge.name,
+              description: badge.description,
+              icon: badge.icon,
+            },
+          },
+        }).catch(err => console.error('Failed to send email:', err));
+      }
+      
       await fetchBadges();
     }
   };

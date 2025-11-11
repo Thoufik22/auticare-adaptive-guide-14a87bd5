@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award } from "lucide-react";
 import { useRewards } from "@/hooks/useRewards";
+import { SocialShare } from "./SocialShare";
 
 export function RewardsDisplay() {
   const { badges, loading } = useRewards();
@@ -16,9 +17,20 @@ export function RewardsDisplay() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Award className="w-5 h-5" />
-          Your Achievements
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Award className="w-5 h-5" />
+            Your Achievements
+          </div>
+          {earnedBadges.length > 0 && (
+            <SocialShare 
+              type="achievement"
+              data={{
+                title: `${earnedBadges.length} Achievements Unlocked`,
+                content: { badges: earnedBadges }
+              }}
+            />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>

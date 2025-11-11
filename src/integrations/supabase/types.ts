@@ -71,6 +71,39 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_achievements: {
+        Row: {
+          content: Json
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_public: boolean
+          share_token: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_public?: boolean
+          share_token?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_public?: boolean
+          share_token?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

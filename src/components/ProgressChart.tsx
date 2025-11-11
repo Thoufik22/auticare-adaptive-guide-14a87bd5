@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProgressEntry } from '@/hooks/useProgressTracking';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ProgressShare } from './ProgressShare';
 
 interface ProgressChartProps {
   history: ProgressEntry[];
@@ -70,25 +71,28 @@ export default function ProgressChart({ history, trend }: ProgressChartProps) {
         'border-bright-blue bg-bright-blue/5'
       }`}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            {trend === 'improving' && (
-              <>
-                <TrendingUp className="w-5 h-5 text-mint" />
-                <span>Improving Trend</span>
-              </>
-            )}
-            {trend === 'declining' && (
-              <>
-                <TrendingDown className="w-5 h-5 text-coral" />
-                <span>Needs Attention</span>
-              </>
-            )}
-            {trend === 'stable' && (
-              <>
-                <Minus className="w-5 h-5 text-bright-blue" />
-                <span>Stable Progress</span>
-              </>
-            )}
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              {trend === 'improving' && (
+                <>
+                  <TrendingUp className="w-5 h-5 text-mint" />
+                  <span>Improving Trend</span>
+                </>
+              )}
+              {trend === 'declining' && (
+                <>
+                  <TrendingDown className="w-5 h-5 text-coral" />
+                  <span>Needs Attention</span>
+                </>
+              )}
+              {trend === 'stable' && (
+                <>
+                  <Minus className="w-5 h-5 text-bright-blue" />
+                  <span>Stable Progress</span>
+                </>
+              )}
+            </div>
+            <ProgressShare />
           </CardTitle>
         </CardHeader>
         <CardContent>

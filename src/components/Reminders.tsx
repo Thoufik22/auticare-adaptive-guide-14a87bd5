@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Reminder {
   id: string;
@@ -37,11 +38,11 @@ export const Reminders = () => {
   }, [reminders]);
 
   useEffect(() => {
-    const checkReminders = setInterval(() => {
+    const checkReminders = setInterval(async () => {
       const now = new Date();
       const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       
-      reminders.forEach(reminder => {
+      for (const reminder of reminders) {
         if (reminder.enabled && reminder.time === currentTime) {
           toast.info(`Reminder: ${reminder.title}`, {
             description: `Time for your ${reminder.type}`,
@@ -54,8 +55,24 @@ export const Reminders = () => {
               icon: "/favicon.ico",
             });
           }
+          
+          // Send email notification
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            supabase.functions.invoke('send-notification', {
+              body: {
+                email: user.email,
+                type: reminder.type === 'appointment' ? 'appointment' : 'reminder',
+                data: {
+                  title: reminder.title,
+                  description: `Time for your ${reminder.type}`,
+                  time: reminder.time,
+                },
+              },
+            }).catch(err => console.error('Failed to send email:', err));
+          }
         }
-      });
+      }
     }, 60000); // Check every minute
 
     return () => clearInterval(checkReminders);
