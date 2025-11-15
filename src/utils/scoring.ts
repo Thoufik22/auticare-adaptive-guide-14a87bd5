@@ -25,6 +25,12 @@ export interface ScoringResult {
   }>;
   rawTotal: number;
   maxPossible: number;
+  videoPrediction?: {
+    prediction_score: number;
+    confidence: number;
+    features_detected?: any;
+  };
+  fusedScore?: number;
 }
 
 // Answer value mapping
@@ -48,7 +54,8 @@ const categoryWeights = {
 export function calculateScore(
   answers: Answer[],
   questionWeights: QuestionWeight[],
-  hasFamilyHistory = false
+  hasFamilyHistory = false,
+  videoPrediction?: { prediction_score: number; confidence: number; features_detected?: any }
 ): ScoringResult {
   let rawTotal = 0;
   let maxPossible = 0;
@@ -82,8 +89,23 @@ export function calculateScore(
   // Normalize to 0-100
   const normalizedScore = Math.round((rawTotal / maxPossible) * 100);
 
-  // Determine severity
-  const { severity, severityLabel } = getSeverity(normalizedScore);
+  // Fuse with video prediction if available
+  let fusedScore = normalizedScore;
+  if (videoPrediction && videoPrediction.prediction_score !== undefined) {
+    // Weighted fusion: 60% questionnaire, 40% ML prediction
+    // Adjust weights based on ML confidence
+    const questionnaireWeight = 0.6;
+    const mlWeight = 0.4 * (videoPrediction.confidence || 0.7); // Use confidence if available
+    const totalWeight = questionnaireWeight + mlWeight;
+    
+    fusedScore = Math.round(
+      (normalizedScore * questionnaireWeight + videoPrediction.prediction_score * mlWeight) / totalWeight
+    );
+  }
+
+  // Determine severity based on fused score if available, otherwise use normalized score
+  const scoreForSeverity = fusedScore;
+  const { severity, severityLabel } = getSeverity(scoreForSeverity);
 
   // Get top 3 contributors
   const topContributors = contributions
@@ -102,6 +124,8 @@ export function calculateScore(
     topContributors,
     rawTotal,
     maxPossible,
+    videoPrediction,
+    fusedScore: videoPrediction ? fusedScore : undefined,
   };
 }
 

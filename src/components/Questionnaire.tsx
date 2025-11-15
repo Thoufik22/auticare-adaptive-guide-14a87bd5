@@ -40,10 +40,11 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [predictingVideo, setPredictingVideo] = useState(false);
   const { toast } = useToast();
   
   // Parent metadata state
-  const [metadata, setMetadata] = useState<ParentMetadata & { videoUrl?: string }>({
+  const [metadata, setMetadata] = useState<ParentMetadata & { videoUrl?: string; videoPrediction?: any }>({
     childName: '',
     childAge: '',
     pronouns: '',
@@ -51,6 +52,7 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
     schoolType: '',
     diagnosedConditions: [],
     videoUrl: '',
+    videoPrediction: null,
   });
 
   // Clinician metadata state
@@ -115,6 +117,33 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
         title: "Success",
         description: "Video uploaded successfully",
       });
+
+      // Get prediction from ML model
+      setPredictingVideo(true);
+      try {
+        const { data: predictionData, error: predictionError } = await supabase.functions.invoke('predict-video', {
+          body: { videoUrl: publicUrl }
+        });
+
+        if (predictionError) {
+          console.error('Prediction error:', predictionError);
+          toast({
+            title: "Analysis Warning",
+            description: "Video uploaded but ML analysis unavailable. Continuing with questionnaire only.",
+            variant: "default",
+          });
+        } else if (predictionData) {
+          setMetadata(prev => ({ ...prev, videoPrediction: predictionData }));
+          toast({
+            title: "Video Analyzed",
+            description: "ML model prediction completed successfully!",
+          });
+        }
+      } catch (predError) {
+        console.error('Prediction error:', predError);
+      } finally {
+        setPredictingVideo(false);
+      }
     }
 
     setUploading(false);
@@ -309,9 +338,14 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                       type="file"
                       accept="video/*"
                       onChange={handleVideoUpload}
-                      disabled={uploading}
+                      disabled={uploading || predictingVideo}
                       className="cursor-pointer"
                     />
+                    {uploading && <p className="text-sm text-muted-foreground">Uploading video...</p>}
+                    {predictingVideo && <p className="text-sm text-muted-foreground">🤖 Analyzing video with ML model...</p>}
+                    {metadata.videoPrediction && (
+                      <p className="text-sm text-green-600">✓ Video analysis complete (Score: {metadata.videoPrediction.prediction_score?.toFixed(1)})</p>
+                    )}
                     {uploading && <p className="text-xs text-muted-foreground">Uploading...</p>}
                     {metadata.videoUrl && (
                       <p className="text-xs text-green-600">✓ Video uploaded successfully</p>
