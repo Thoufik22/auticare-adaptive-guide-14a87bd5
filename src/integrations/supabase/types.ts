@@ -35,6 +35,45 @@ export type Database = {
         }
         Relationships: []
       }
+      assessment_history: {
+        Row: {
+          created_at: string
+          fused_score: number
+          id: string
+          metadata: Json | null
+          ml_score: number | null
+          questionnaire_score: number
+          role: string
+          severity: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          fused_score: number
+          id?: string
+          metadata?: Json | null
+          ml_score?: number | null
+          questionnaire_score: number
+          role: string
+          severity: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          fused_score?: number
+          id?: string
+          metadata?: Json | null
+          ml_score?: number | null
+          questionnaire_score?: number
+          role?: string
+          severity?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null

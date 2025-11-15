@@ -62,10 +62,11 @@ export default function MoodCheck({ result }: MoodCheckProps) {
 
   const getMotivationalMessage = (result: ScoringResult): string => {
     const messages: Record<ScoringResult['severity'], string> = {
-      low: "You're building great habits! Keep this momentum going. Remember, consistency is key. 💫",
-      mild: "You're making progress every day! Small steps lead to big changes. Keep pushing forward! 🌱",
-      moderate: "You're doing really well managing challenges! Remember to be patient with yourself. You've got this! 🌈",
-      high: "You're incredibly brave for taking these steps! Remember, asking for help is a sign of strength. You're not alone. 💙",
+      'very-low': "Excellent progress! You're doing wonderfully. Keep up the great work! 🌟",
+      'low': "You're building great habits! Keep this momentum going. Remember, consistency is key. 💫",
+      'moderate': "You're making steady progress! Small steps lead to big changes. Keep pushing forward! 🌱",
+      'high': "You're doing well managing challenges! Remember to be patient with yourself. You've got this! 🌈",
+      'very-high': "You're incredibly brave for taking these steps! Remember, asking for help is a sign of strength. You're not alone. 💙",
     };
     return messages[result.severity];
   };

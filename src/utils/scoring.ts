@@ -16,7 +16,7 @@ export interface Answer {
 
 export interface ScoringResult {
   normalizedScore: number;
-  severity: 'low' | 'mild' | 'moderate' | 'high';
+  severity: 'very-low' | 'low' | 'moderate' | 'high' | 'very-high';
   severityLabel: string;
   topContributors: Array<{
     question: string;
@@ -131,14 +131,16 @@ export function calculateScore(
 
 // Get severity level and label
 function getSeverity(score: number): { severity: ScoringResult['severity']; severityLabel: string } {
-  if (score <= 30) {
-    return { severity: 'low', severityLabel: 'Monitor' };
-  } else if (score <= 55) {
-    return { severity: 'mild', severityLabel: 'Consider screening' };
-  } else if (score <= 75) {
-    return { severity: 'moderate', severityLabel: 'Recommend clinical evaluation' };
+  if (score <= 20) {
+    return { severity: 'very-low', severityLabel: 'Very Low Risk' };
+  } else if (score <= 40) {
+    return { severity: 'low', severityLabel: 'Low Risk - Monitor' };
+  } else if (score <= 60) {
+    return { severity: 'moderate', severityLabel: 'Moderate - Consider Screening' };
+  } else if (score <= 80) {
+    return { severity: 'high', severityLabel: 'High - Recommend Evaluation' };
   } else {
-    return { severity: 'high', severityLabel: 'Urgent — seek clinical assessment' };
+    return { severity: 'very-high', severityLabel: 'Very High - Urgent Assessment' };
   }
 }
 
@@ -156,10 +158,11 @@ function getActionForContributor(questionId: string, value: number): string {
 // Get severity theme color
 export function getSeverityColor(severity: ScoringResult['severity']): string {
   const colors = {
-    low: 'mint',
-    mild: 'bright-blue',
-    moderate: 'lavender',
-    high: 'coral',
+    'very-low': 'mint',
+    'low': 'bright-blue',
+    'moderate': 'lavender',
+    'high': 'coral',
+    'very-high': 'coral',
   };
   return colors[severity];
 }
@@ -172,6 +175,13 @@ export function getScheduleComplexity(severity: ScoringResult['severity']): {
   description: string;
 } {
   switch (severity) {
+    case 'very-low':
+      return {
+        level: 'Very Low',
+        taskCount: 1,
+        taskDuration: '30-45 min',
+        description: 'Minimal intervention with optional activities',
+      };
     case 'low':
       return {
         level: 'Low',
@@ -179,26 +189,26 @@ export function getScheduleComplexity(severity: ScoringResult['severity']): {
         taskDuration: '20-40 min',
         description: 'Optional gentle tasks with flexible timing',
       };
-    case 'mild':
-      return {
-        level: 'Medium',
-        taskCount: 3,
-        taskDuration: '15-20 min',
-        description: 'Structured tasks with visual timers',
-      };
     case 'moderate':
       return {
-        level: 'Medium-High',
-        taskCount: 5,
-        taskDuration: '10-15 min',
-        description: 'Microtasks with calming breaks and parent support',
+        level: 'Medium',
+        taskCount: 4,
+        taskDuration: '15-20 min',
+        description: 'Structured tasks with visual timers',
       };
     case 'high':
       return {
         level: 'High',
-        taskCount: 7,
+        taskCount: 6,
+        taskDuration: '10-15 min',
+        description: 'Microtasks with calming breaks and parent support',
+      };
+    case 'very-high':
+      return {
+        level: 'Very High',
+        taskCount: 8,
         taskDuration: '5-12 min',
-        description: 'Short microtasks with frequent breaks and clinician contact',
+        description: 'Short microtasks with frequent breaks and clinical supervision',
       };
   }
 }

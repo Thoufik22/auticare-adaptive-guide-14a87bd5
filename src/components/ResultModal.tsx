@@ -11,17 +11,19 @@ interface ResultModalProps {
 
 export default function ResultModal({ result, onClose }: ResultModalProps) {
   const severityColors = {
-    low: 'bg-mint text-mint-foreground',
-    mild: 'bg-bright-blue text-bright-blue-foreground',
-    moderate: 'bg-lavender text-lavender-foreground',
-    high: 'bg-coral text-coral-foreground',
+    'very-low': 'bg-mint text-mint-foreground',
+    'low': 'bg-bright-blue text-bright-blue-foreground',
+    'moderate': 'bg-lavender text-lavender-foreground',
+    'high': 'bg-coral text-coral-foreground',
+    'very-high': 'bg-coral text-coral-foreground',
   };
 
   const severityBorderColors = {
-    low: 'border-mint',
-    mild: 'border-bright-blue',
-    moderate: 'border-lavender',
-    high: 'border-coral',
+    'very-low': 'border-mint',
+    'low': 'border-bright-blue',
+    'moderate': 'border-lavender',
+    'high': 'border-coral',
+    'very-high': 'border-coral',
   };
 
   return (
@@ -129,6 +131,13 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
               <h3 className="font-semibold">Recommended Next Steps</h3>
             </div>
             
+            {result.severity === 'very-low' && (
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>Continue current positive behaviors</li>
+                <li>Maintain supportive environment</li>
+              </ul>
+            )}
+            
             {result.severity === 'low' && (
               <ul className="list-disc list-inside space-y-1 text-sm">
                 <li>Continue monitoring development and behaviors</li>
@@ -136,7 +145,7 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
               </ul>
             )}
             
-            {result.severity === 'mild' && (
+            {result.severity === 'moderate' && (
               <ul className="list-disc list-inside space-y-1 text-sm">
                 <li>Consider scheduling a screening with a healthcare provider</li>
                 <li>Document specific behaviors and patterns</li>
@@ -144,7 +153,7 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
               </ul>
             )}
             
-            {result.severity === 'moderate' && (
+            {result.severity === 'high' && (
               <ul className="list-disc list-inside space-y-1 text-sm">
                 <li>Schedule a comprehensive evaluation with a specialist</li>
                 <li>Consider early intervention services</li>
@@ -152,10 +161,10 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
               </ul>
             )}
             
-            {result.severity === 'high' && (
+            {result.severity === 'very-high' && (
               <ul className="list-disc list-inside space-y-1 text-sm">
                 <li className="font-semibold text-coral">Seek clinical assessment as soon as possible</li>
-                <li>Contact your healthcare provider or pediatrician</li>
+                <li>Contact your healthcare provider or pediatrician immediately</li>
                 <li>Consider connecting with an autism specialist</li>
                 <li>Explore immediate support resources</li>
               </ul>

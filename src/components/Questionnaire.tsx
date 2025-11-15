@@ -36,7 +36,9 @@ const answerOptions: { value: AnswerValue; label: string }[] = [
 ];
 
 export default function Questionnaire({ role, questions, onComplete, onBack }: QuestionnaireProps) {
-  const [currentStep, setCurrentStep] = useState(role !== 'individual' ? 0 : 1);
+  // Individual: Step 0=Video, Step 1+=Questions
+  // Parent/Clinician: Step 0=Metadata, Step 1=Video, Step 2+=Questions
+  const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -64,10 +66,12 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
     problemsFaced: '',
   });
 
-  const totalSteps = role !== 'individual' ? questions.length + 1 : questions.length;
+  const videoStep = role === 'individual' ? 0 : 1;
+  const firstQuestionStep = role === 'individual' ? 1 : 2;
+  const totalSteps = role === 'individual' ? questions.length + 1 : questions.length + 2;
   const progress = (currentStep / totalSteps) * 100;
-  const currentQuestionIndex = role !== 'individual' ? currentStep - 1 : currentStep - 1;
-  const currentQuestion = questions[currentQuestionIndex];
+  const currentQuestionIndex = currentStep < firstQuestionStep ? -1 : currentStep - firstQuestionStep;
+  const currentQuestion = currentQuestionIndex >= 0 ? questions[currentQuestionIndex] : null;
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,18 +192,23 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
   };
 
   const canProceed = () => {
+    // Step 0: Metadata or Video upload
     if (currentStep === 0) {
-      if (role === 'parent') {
-        return metadata.childName && metadata.childAge;
-      }
+      if (role === 'individual') return metadata.videoUrl !== '';
+      if (role === 'parent') return metadata.childName && metadata.childAge;
       if (role === 'clinician') {
         return clinicianMetadata.childName && clinicianMetadata.childAge && 
                clinicianMetadata.pronoun && clinicianMetadata.homeLanguage && 
                clinicianMetadata.problemsFaced;
       }
     }
-    if (currentStep > 0 && currentStep <= questions.length) {
-      return answers[currentQuestion?.id] !== undefined;
+    // Video step for parent/clinician
+    if (currentStep === videoStep && role !== 'individual') {
+      return metadata.videoUrl !== '';
+    }
+    // Question steps
+    if (currentStep >= firstQuestionStep && currentQuestion) {
+      return answers[currentQuestion.id] !== undefined;
     }
     return true;
   };

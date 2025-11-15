@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Download, Phone, Gamepad2 } from 'lucide-react';
+import { Calendar, Download, Phone, Gamepad2, Share2 } from 'lucide-react';
 import { ScoringResult, getScheduleComplexity } from '@/utils/scoring';
 import { ParentMetadata } from '@/data/questionBanks';
 import jsPDF from 'jspdf';
@@ -16,7 +16,10 @@ import { CommunityResources } from './CommunityResources';
 import { Timer } from './Timer';
 import { RewardsDisplay } from './RewardsDisplay';
 import { useProgressTracking } from '@/hooks/useProgressTracking';
+import { useAssessmentHistory } from '@/hooks/useAssessmentHistory';
+import AssessmentChart from './AssessmentChart';
 import { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardProps {
   role: 'individual' | 'parent' | 'clinician';
@@ -28,13 +31,16 @@ interface DashboardProps {
 export default function Dashboard({ role, result, metadata, onNavigateToCalmZone }: DashboardProps) {
   const schedule = getScheduleComplexity(result.severity);
   const { addEntry, history, getTrend } = useProgressTracking();
+  const { history: assessmentHistory, loading: historyLoading, saveAssessment } = useAssessmentHistory();
   const [showGames, setShowGames] = useState(false);
+  const { toast } = useToast();
   
   const severityColors = {
-    low: 'mint',
-    mild: 'bright-blue',
-    moderate: 'lavender',
-    high: 'coral',
+    'very-low': 'mint',
+    'low': 'bright-blue',
+    'moderate': 'lavender',
+    'high': 'coral',
+    'very-high': 'coral',
   };
 
   const accentColor = severityColors[result.severity];
@@ -44,6 +50,8 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
 
   useEffect(() => {
     addEntry(result, role);
+    const videoUrl = (metadata as any)?.videoUrl || null;
+    saveAssessment(result, role, metadata, videoUrl);
   }, []);
 
   if (showGames) {
@@ -74,8 +82,18 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
     
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text(`Score: ${result.normalizedScore}/100`, 20, yPos);
+    doc.text(`Questionnaire Score: ${result.normalizedScore}/100`, 20, yPos);
     yPos += 6;
+    
+    if (result.videoPrediction) {
+      doc.text(`ML Prediction Score: ${result.videoPrediction.prediction_score.toFixed(1)}/100`, 20, yPos);
+      yPos += 6;
+      doc.text(`Fused Score: ${result.fusedScore}/100`, 20, yPos);
+      yPos += 6;
+      doc.text(`Model Confidence: ${((result.videoPrediction.confidence || 0.7) * 100).toFixed(0)}%`, 20, yPos);
+      yPos += 6;
+    }
+    
     doc.text(`Severity: ${result.severityLabel}`, 20, yPos);
     yPos += 6;
     doc.text(`Role: ${role.charAt(0).toUpperCase() + role.slice(1)}`, 20, yPos);
@@ -212,7 +230,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
             </p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {result.normalizedScore > 70 && (
               <Button 
                 variant="outline" 
@@ -227,7 +245,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
               <Download className="w-4 h-4 mr-2" />
               Download Report
             </Button>
-            {result.severity === 'high' && (
+            {(result.severity === 'high' || result.severity === 'very-high') && (
               <Button className="bg-coral hover:bg-coral/90">
                 <Phone className="w-4 h-4 mr-2" />
                 Contact Clinician
@@ -324,6 +342,11 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
             <ProgressChart history={history} trend={trend} />
           </div>
         </div>
+
+        {/* Assessment History Chart */}
+        {!historyLoading && assessmentHistory.length > 1 && (
+          <AssessmentChart history={assessmentHistory} />
+        )}
 
         {/* Reminders, Timer, and Community Resources */}
         <div className="grid md:grid-cols-3 gap-6">
