@@ -60,7 +60,9 @@ export default function Index() {
     // Check for family history in parent questionnaire
     const hasFamilyHistory = selectedRole === 'parent' && answers['par_20'] === 'always';
 
-    const result = calculateScore(answerArray, questionWeights, hasFamilyHistory);
+    // Pass video prediction if available from parent metadata
+    const videoPrediction = metadata?.videoPrediction;
+    const result = calculateScore(answerArray, questionWeights, hasFamilyHistory, videoPrediction);
     setScoringResult(result);
     setAppState('results');
   };

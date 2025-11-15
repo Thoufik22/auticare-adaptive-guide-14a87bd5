@@ -42,17 +42,64 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
             
             <div className="py-8">
               <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full ${severityColors[result.severity]} mb-4`}>
-                <span className="text-5xl font-bold">{result.normalizedScore}</span>
+                <span className="text-5xl font-bold">{result.fusedScore || result.normalizedScore}</span>
               </div>
               
               <Badge className={`${severityColors[result.severity]} text-lg px-6 py-2`}>
                 {result.severityLabel}
               </Badge>
+
+              {result.fusedScore && (
+                <div className="mt-4 text-sm text-muted-foreground space-y-1">
+                  <p>🤖 ML-Enhanced Score (Fused Analysis)</p>
+                  <div className="flex justify-center gap-4 text-xs">
+                    <span>Questionnaire: {result.normalizedScore}</span>
+                    <span>ML Model: {result.videoPrediction?.prediction_score.toFixed(1)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {result.videoPrediction && (
+            <div className="space-y-3 bg-primary/10 p-4 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  🎥
+                </div>
+                <h3 className="font-semibold">Video Analysis Results</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">ML Prediction Score</p>
+                  <p className="text-2xl font-bold">{result.videoPrediction.prediction_score.toFixed(1)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Model Confidence</p>
+                  <p className="text-2xl font-bold">{((result.videoPrediction.confidence || 0.7) * 100).toFixed(0)}%</p>
+                </div>
+              </div>
+              {result.videoPrediction.features_detected && (
+                <div className="pt-2 border-t border-primary/20">
+                  <p className="text-xs text-muted-foreground mb-2">Detected Features:</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {Object.entries(result.videoPrediction.features_detected).map(([key, value]) => (
+                      <div key={key} className="space-y-1">
+                        <p className="capitalize">{key.replace(/_/g, ' ')}</p>
+                        <p className="font-semibold">{(value as number).toFixed(1)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground italic">
+                * The final score combines questionnaire responses (60%) with ML video analysis (40%)
+              </p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-muted-foreground" />
