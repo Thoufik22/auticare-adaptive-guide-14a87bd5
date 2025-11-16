@@ -131,14 +131,16 @@ export function calculateScore(
 
 // Get severity level and label
 function getSeverity(score: number): { severity: ScoringResult['severity']; severityLabel: string } {
-  if (score <= 30) {
-    return { severity: 'low', severityLabel: 'Monitor' };
-  } else if (score <= 55) {
-    return { severity: 'mild', severityLabel: 'Consider screening' };
-  } else if (score <= 75) {
-    return { severity: 'moderate', severityLabel: 'Recommend clinical evaluation' };
+  if (score < 25) {
+    return { severity: 'low', severityLabel: 'Very Low (Normal)' };
+  } else if (score < 40) {
+    return { severity: 'mild', severityLabel: 'Low - Assessment Requested' };
+  } else if (score < 60) {
+    return { severity: 'moderate', severityLabel: 'Moderate - Assessment Required' };
+  } else if (score < 75) {
+    return { severity: 'high', severityLabel: 'High - Assessment Mandatory' };
   } else {
-    return { severity: 'high', severityLabel: 'Urgent — seek clinical assessment' };
+    return { severity: 'high', severityLabel: 'Very High - Regular Checkup Needed' };
   }
 }
 

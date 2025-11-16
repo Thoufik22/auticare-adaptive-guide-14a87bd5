@@ -199,6 +199,8 @@ export interface ParentMetadata {
   homeLanguage: string;
   schoolType: string;
   diagnosedConditions: string[];
+  videoUrl?: string;
+  videoPrediction?: any;
 }
 
 // Clinician structured inputs

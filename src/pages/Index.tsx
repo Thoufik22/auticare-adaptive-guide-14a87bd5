@@ -238,6 +238,7 @@ export default function Index() {
           result={scoringResult} 
           onClose={handleResultsClose} 
           onBackToHome={handleBackToHomeFromResults}
+          videoUrl={parentMetadata?.videoUrl}
         />
       )}
 
