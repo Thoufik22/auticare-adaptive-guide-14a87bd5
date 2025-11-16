@@ -56,12 +56,14 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
   });
 
   // Clinician metadata state
-  const [clinicianMetadata, setClinicianMetadata] = useState<ClinicianMetadata>({
+  const [clinicianMetadata, setClinicianMetadata] = useState<ClinicianMetadata & { videoUrl?: string; videoPrediction?: any }>({
     childName: '',
     childAge: '',
     pronoun: '',
     homeLanguage: '',
     problemsFaced: '',
+    videoUrl: '',
+    videoPrediction: null,
   });
 
   const totalSteps = role !== 'individual' ? questions.length + 1 : questions.length;
@@ -112,7 +114,11 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
         .from('assessment-videos')
         .getPublicUrl(filePath);
       
-      setMetadata({ ...metadata, videoUrl: publicUrl });
+      if (role === 'parent') {
+        setMetadata({ ...metadata, videoUrl: publicUrl });
+      } else if (role === 'clinician') {
+        setClinicianMetadata({ ...clinicianMetadata, videoUrl: publicUrl });
+      }
       toast({
         title: "Success",
         description: "Video uploaded successfully",
@@ -133,7 +139,11 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
             variant: "default",
           });
         } else if (predictionData) {
-          setMetadata(prev => ({ ...prev, videoPrediction: predictionData }));
+          if (role === 'parent') {
+            setMetadata(prev => ({ ...prev, videoPrediction: predictionData }));
+          } else if (role === 'clinician') {
+            setClinicianMetadata(prev => ({ ...prev, videoPrediction: predictionData }));
+          }
           toast({
             title: "Video Analyzed",
             description: "ML model prediction completed successfully!",
@@ -410,6 +420,36 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                   onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, problemsFaced: e.target.value })}
                   placeholder="Describe the challenges the child is facing"
                 />
+              </div>
+
+              <div className="space-y-4">
+                <div className="border-t pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="clinician-video">Upload Video for ML Analysis (Optional)</Label>
+                    <div className="flex items-center gap-2">
+                      <Upload className="w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="clinician-video" className="text-sm text-muted-foreground cursor-pointer hover:text-foreground">
+                        Upload a short video of the child for enhanced ML-powered assessment
+                      </Label>
+                    </div>
+                    <Input
+                      id="clinician-video"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      disabled={uploading || predictingVideo}
+                      className="cursor-pointer"
+                    />
+                    {uploading && <p className="text-sm text-muted-foreground">Uploading video...</p>}
+                    {predictingVideo && <p className="text-sm text-muted-foreground">🤖 Analyzing video with ML model...</p>}
+                    {clinicianMetadata.videoPrediction && (
+                      <p className="text-sm text-green-600">✓ Video analysis complete (Score: {clinicianMetadata.videoPrediction.prediction_score?.toFixed(1)})</p>
+                    )}
+                    {clinicianMetadata.videoUrl && !clinicianMetadata.videoPrediction && !predictingVideo && (
+                      <p className="text-xs text-green-600">✓ Video uploaded successfully</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ) : currentQuestion ? (

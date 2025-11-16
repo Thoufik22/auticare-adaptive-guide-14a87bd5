@@ -7,9 +7,10 @@ import { ScoringResult } from '@/utils/scoring';
 interface ResultModalProps {
   result: ScoringResult;
   onClose: () => void;
+  onBackToHome?: () => void;
 }
 
-export default function ResultModal({ result, onClose }: ResultModalProps) {
+export default function ResultModal({ result, onClose, onBackToHome }: ResultModalProps) {
   const severityColors = {
     low: 'bg-mint text-mint-foreground',
     mild: 'bg-bright-blue text-bright-blue-foreground',
@@ -25,42 +26,39 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
-      <Card className={`max-w-2xl w-full animate-scale-in border-4 ${severityBorderColors[result.severity]}`}>
-        <CardHeader className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-4 top-4"
-            onClick={onClose}
-          >
-            <X className="w-5 h-5" />
-          </Button>
-
-          <div className="text-center space-y-4">
-            <CardTitle className="text-3xl">Assessment Complete</CardTitle>
-            
-            <div className="py-8">
-              <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full ${severityColors[result.severity]} mb-4`}>
-                <span className="text-5xl font-bold">{result.fusedScore || result.normalizedScore}</span>
-              </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
+      <div className="w-full max-w-4xl my-8">
+        <Card className={`w-full animate-scale-in border-4 ${severityBorderColors[result.severity]}`}>
+          <CardHeader className="relative pb-2">
+            <div className="text-center space-y-6">
+              <CardTitle className="text-4xl font-bold">Assessment Results</CardTitle>
               
-              <Badge className={`${severityColors[result.severity]} text-lg px-6 py-2`}>
-                {result.severityLabel}
-              </Badge>
+              <div className="flex justify-center py-6">
+                <div className={`inline-flex flex-col items-center justify-center w-40 h-40 rounded-full ${severityColors[result.severity]} shadow-xl`}>
+                  <span className="text-6xl font-bold mb-1">{result.fusedScore || result.normalizedScore}</span>
+                  <Badge className={`${severityColors[result.severity]} text-base px-4 py-1 border-2 border-background`}>
+                    {result.severityLabel}
+                  </Badge>
+                </div>
+              </div>
 
               {result.fusedScore && (
-                <div className="mt-4 text-sm text-muted-foreground space-y-1">
-                  <p>🤖 ML-Enhanced Score (Fused Analysis)</p>
-                  <div className="flex justify-center gap-4 text-xs">
-                    <span>Questionnaire: {result.normalizedScore}</span>
-                    <span>ML Model: {result.videoPrediction?.prediction_score.toFixed(1)}</span>
+                <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
+                  <p className="text-sm font-semibold mb-2">🤖 ML-Enhanced Score (Fused Analysis)</p>
+                  <div className="flex justify-center gap-6 text-sm">
+                    <div className="text-center">
+                      <p className="text-muted-foreground">Questionnaire</p>
+                      <p className="text-2xl font-bold">{result.normalizedScore}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-muted-foreground">ML Model</p>
+                      <p className="text-2xl font-bold">{result.videoPrediction?.prediction_score.toFixed(1)}</p>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
         <CardContent className="space-y-6">
           {result.videoPrediction && (
@@ -162,15 +160,28 @@ export default function ResultModal({ result, onClose }: ResultModalProps) {
             )}
           </div>
 
-          <Button
-            onClick={onClose}
-            className={`w-full ${severityColors[result.severity]} text-lg py-6`}
-            size="lg"
-          >
-            Continue to Dashboard
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={onClose}
+              className={`flex-1 ${severityColors[result.severity]} text-lg py-6 font-semibold`}
+              size="lg"
+            >
+              Go to Dashboard
+            </Button>
+            {onBackToHome && (
+              <Button
+                onClick={onBackToHome}
+                variant="outline"
+                className="flex-1 text-lg py-6 font-semibold"
+                size="lg"
+              >
+                Back to Home
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

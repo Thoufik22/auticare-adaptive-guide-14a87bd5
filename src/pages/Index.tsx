@@ -71,6 +71,13 @@ export default function Index() {
     setAppState('dashboard');
   };
 
+  const handleBackToHomeFromResults = () => {
+    setAppState('role-selection');
+    setSelectedRole(null);
+    setScoringResult(null);
+    setParentMetadata(null);
+  };
+
   const handleBackToRoles = () => {
     setSelectedRole(null);
     setAppState('role-selection');
@@ -227,7 +234,11 @@ export default function Index() {
       )}
 
       {appState === 'results' && scoringResult && (
-        <ResultModal result={scoringResult} onClose={handleResultsClose} />
+        <ResultModal 
+          result={scoringResult} 
+          onClose={handleResultsClose} 
+          onBackToHome={handleBackToHomeFromResults}
+        />
       )}
 
       {appState === 'dashboard' && scoringResult && selectedRole && (
