@@ -23,11 +23,9 @@ interface DashboardProps {
   result: ScoringResult;
   metadata?: ParentMetadata;
   onNavigateToCalmZone: () => void;
-  isReturningUser?: boolean;
-  username?: string;
 }
 
-export default function Dashboard({ role, result, metadata, onNavigateToCalmZone, isReturningUser = false, username }: DashboardProps) {
+export default function Dashboard({ role, result, metadata, onNavigateToCalmZone }: DashboardProps) {
   const schedule = getScheduleComplexity(result.severity);
   const { addEntry, history, getTrend } = useProgressTracking();
   const [showGames, setShowGames] = useState(false);
@@ -201,18 +199,6 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
     <div className="min-h-screen p-4 md:p-8">
       <AccessibilityControls />
       <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
-        {/* Welcome Banner for Returning Users */}
-        {isReturningUser && (
-          <Card className="bg-gradient-to-r from-mint/20 to-bright-blue/20 border-mint">
-            <CardContent className="py-4">
-              <p className="text-lg font-medium text-center">
-                Assessment complete — View your results below
-                {username && <span className="text-muted-foreground">, {username}</span>}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>

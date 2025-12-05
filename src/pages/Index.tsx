@@ -8,9 +8,10 @@ import ResultModal from '@/components/ResultModal';
 import Dashboard from '@/components/Dashboard';
 import CalmZone from '@/components/CalmZone';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { individualQuestions, parentQuestions, getQuestionWeights, ParentMetadata } from '@/data/questionBanks';
 import { calculateScore, ScoringResult, Answer, AnswerValue } from '@/utils/scoring';
-import { LogOut, AlertCircle } from 'lucide-react';
+import { Sparkles, LogOut, AlertCircle } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAssessmentData } from '@/hooks/useUserAssessmentData';
@@ -34,14 +35,13 @@ export default function Index() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [scoringResult, setScoringResult] = useState<ScoringResult | null>(null);
   const [parentMetadata, setParentMetadata] = useState<ParentMetadata | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [patientId, setPatientId] = useState<string>('');
   const [excelAnswers, setExcelAnswers] = useState<Record<string, AnswerValue>>({});
   const [excelData, setExcelData] = useState<Record<string, any> | null>(null);
   const [showResetDialog, setShowResetDialog] = useState(false);
-  const [isReturningUser, setIsReturningUser] = useState(false);
-  const [username, setUsername] = useState<string>('');
   const { toast } = useToast();
 
   const { 
@@ -52,9 +52,9 @@ export default function Index() {
     clearAssessmentData 
   } = useUserAssessmentData(user);
 
-  // Auto-redirect to dashboard if user has existing complete assessment
+  // Auto-redirect to dashboard if user has existing data with a score
   useEffect(() => {
-    if (hasExistingData && assessmentData && assessmentData.assessment_complete) {
+    if (hasExistingData && assessmentData && assessmentData.last_score !== null) {
       setSelectedRole(assessmentData.role as Role);
       setPatientId(assessmentData.patient_id);
       
@@ -65,9 +65,7 @@ export default function Index() {
           questionId,
           value: value as AnswerValue,
         }));
-        // Use stored model score for fusion if available
-        const modelScoreData = assessmentData.model_score ? { prediction_score: assessmentData.model_score, confidence: 0.8 } : undefined;
-        const result = calculateScore(answerArray, questionWeights, false, modelScoreData);
+        const result = calculateScore(answerArray, questionWeights, false);
         setScoringResult(result);
         
         if (assessmentData.child_data) {
@@ -75,10 +73,9 @@ export default function Index() {
         }
         
         setAppState('dashboard');
-        setIsReturningUser(true);
         toast({
           title: "Welcome back!",
-          description: `Your assessment is complete. Fused score: ${assessmentData.fused_score || result.normalizedScore}%`,
+          description: `Loaded your ${assessmentData.role} dashboard with ID: ${assessmentData.patient_id}`,
         });
       }
     }
@@ -88,9 +85,6 @@ export default function Index() {
     setUser(authenticatedUser);
     setIsAuthenticated(true);
     setSelectedRole(role as Role);
-    // Extract username from user metadata
-    const name = authenticatedUser.user_metadata?.name || authenticatedUser.email?.split('@')[0] || '';
-    setUsername(name);
   };
 
   const handleLogout = async () => {
@@ -176,7 +170,7 @@ export default function Index() {
     const result = calculateScore(answerArray, questionWeights, hasFamilyHistory, videoPrediction);
     setScoringResult(result);
 
-    // Save comprehensive assessment data to database
+    // Save assessment data to database
     if (user) {
       await saveAssessmentData(
         user.email || '',
@@ -185,10 +179,7 @@ export default function Index() {
         metadata,
         excelData,
         answers,
-        result.normalizedScore,
-        Math.round((result.rawTotal / result.maxPossible) * 100), // questionnaire score
-        videoPrediction?.prediction_score || null, // model score
-        result.fusedScore || result.normalizedScore // fused score
+        result.normalizedScore
       );
     }
 
@@ -225,6 +216,78 @@ export default function Index() {
     setAppState('dashboard');
   };
 
+  const activateDemoMode = () => {
+    setDemoMode(true);
+    const demoAnswers: Record<string, AnswerValue> = {};
+    individualQuestions.forEach((q, index) => {
+      demoAnswers[q.id] = index % 3 === 0 ? 'never' : index % 3 === 1 ? 'rarely' : 'sometimes';
+    });
+    
+    const questionWeights = getQuestionWeights('individual');
+    const answerArray: Answer[] = Object.entries(demoAnswers).map(([questionId, value]) => ({
+      questionId,
+      value,
+    }));
+    
+    const result = calculateScore(answerArray, questionWeights, false);
+    setSelectedRole('individual');
+    setScoringResult(result);
+    setAppState('dashboard');
+  };
+
+  const activateDemoParent = () => {
+    setDemoMode(true);
+    const demoAnswers: Record<string, AnswerValue> = {};
+    parentQuestions.forEach((q, index) => {
+      demoAnswers[q.id] = index % 2 === 0 ? 'often' : 'sometimes';
+    });
+    
+    const questionWeights = getQuestionWeights('parent');
+    const answerArray: Answer[] = Object.entries(demoAnswers).map(([questionId, value]) => ({
+      questionId,
+      value,
+    }));
+    
+    const result = calculateScore(answerArray, questionWeights, true);
+    setSelectedRole('parent');
+    setParentMetadata({
+      childName: 'Alex',
+      childAge: '3-5 years',
+      pronouns: 'they/them',
+      homeLanguage: 'English',
+      schoolType: 'Mainstream',
+      diagnosedConditions: ['ADHD'],
+    });
+    setScoringResult(result);
+    setAppState('dashboard');
+  };
+
+  const activateDemoHigh = () => {
+    setDemoMode(true);
+    const demoAnswers: Record<string, AnswerValue> = {};
+    parentQuestions.forEach((q) => {
+      demoAnswers[q.id] = 'always';
+    });
+    
+    const questionWeights = getQuestionWeights('parent');
+    const answerArray: Answer[] = Object.entries(demoAnswers).map(([questionId, value]) => ({
+      questionId,
+      value,
+    }));
+    
+    const result = calculateScore(answerArray, questionWeights, true);
+    setSelectedRole('parent');
+    setParentMetadata({
+      childName: 'Jordan',
+      childAge: '3-5 years',
+      pronouns: 'he/him',
+      homeLanguage: 'English',
+      schoolType: 'Special Education',
+      diagnosedConditions: ['Speech delay', 'Anxiety'],
+    });
+    setScoringResult(result);
+    setAppState('dashboard');
+  };
 
   // Show auth screen if not authenticated
   if (!isAuthenticated) {
@@ -283,6 +346,41 @@ export default function Index() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Demo Mode Toggle */}
+      {appState === 'role-selection' && (
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          <Badge variant="outline" className="bg-background">
+            <Sparkles className="w-3 h-3 mr-1" />
+            Demo Mode
+          </Badge>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={activateDemoMode}
+              className="bg-mint hover:bg-mint/90"
+            >
+              Demo: Low
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={activateDemoParent}
+              className="bg-lavender hover:bg-lavender/90"
+            >
+              Demo: Moderate
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={activateDemoHigh}
+              className="bg-coral hover:bg-coral/90 text-white"
+            >
+              Demo: High
+            </Button>
+          </div>
+        </div>
+      )}
 
       {appState === 'role-selection' && (
         <RoleSelection onSelectRole={handleRoleSelection} />
@@ -331,8 +429,6 @@ export default function Index() {
           result={scoringResult}
           metadata={parentMetadata || undefined}
           onNavigateToCalmZone={handleNavigateToCalmZone}
-          isReturningUser={isReturningUser}
-          username={username}
         />
       )}
 
