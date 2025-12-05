@@ -143,6 +143,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_assessment_data: {
+        Row: {
+          assessment_complete: boolean | null
+          child_data: Json | null
+          created_at: string
+          email: string
+          excel_data: Json | null
+          fused_score: number | null
+          id: string
+          last_assessment_answers: Json | null
+          last_score: number | null
+          model_score: number | null
+          patient_id: string
+          questionnaire_score: number | null
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assessment_complete?: boolean | null
+          child_data?: Json | null
+          created_at?: string
+          email: string
+          excel_data?: Json | null
+          fused_score?: number | null
+          id?: string
+          last_assessment_answers?: Json | null
+          last_score?: number | null
+          model_score?: number | null
+          patient_id: string
+          questionnaire_score?: number | null
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assessment_complete?: boolean | null
+          child_data?: Json | null
+          created_at?: string
+          email?: string
+          excel_data?: Json | null
+          fused_score?: number | null
+          id?: string
+          last_assessment_answers?: Json | null
+          last_score?: number | null
+          model_score?: number | null
+          patient_id?: string
+          questionnaire_score?: number | null
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
