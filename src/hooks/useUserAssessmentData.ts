@@ -12,6 +12,10 @@ export interface UserAssessmentData {
   excel_data: Record<string, any> | null;
   last_assessment_answers: Record<string, any> | null;
   last_score: number | null;
+  questionnaire_score: number | null;
+  model_score: number | null;
+  fused_score: number | null;
+  assessment_complete: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -66,7 +70,10 @@ export function useUserAssessmentData(user: User | null) {
     childData?: Record<string, any>,
     excelData?: Record<string, any> | null,
     answers?: Record<string, any>,
-    score?: number
+    score?: number,
+    questionnaireScore?: number,
+    modelScore?: number | null,
+    fusedScore?: number
   ) => {
     if (!user) return { success: false, error: 'Not authenticated' };
 
@@ -86,6 +93,10 @@ export function useUserAssessmentData(user: User | null) {
             excel_data: excelData,
             last_assessment_answers: answers || null,
             last_score: score || null,
+            questionnaire_score: questionnaireScore || null,
+            model_score: modelScore || null,
+            fused_score: fusedScore || null,
+            assessment_complete: true,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.id);
@@ -103,7 +114,11 @@ export function useUserAssessmentData(user: User | null) {
             child_data: childData || {},
             excel_data: excelData,
             last_assessment_answers: answers || null,
-            last_score: score || null
+            last_score: score || null,
+            questionnaire_score: questionnaireScore || null,
+            model_score: modelScore || null,
+            fused_score: fusedScore || null,
+            assessment_complete: true
           });
 
         if (error) throw error;
