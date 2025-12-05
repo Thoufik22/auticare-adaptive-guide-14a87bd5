@@ -143,48 +143,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_assessment_data: {
-        Row: {
-          child_data: Json | null
-          created_at: string
-          email: string
-          excel_data: Json | null
-          id: string
-          last_assessment_answers: Json | null
-          last_score: number | null
-          patient_id: string
-          role: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          child_data?: Json | null
-          created_at?: string
-          email: string
-          excel_data?: Json | null
-          id?: string
-          last_assessment_answers?: Json | null
-          last_score?: number | null
-          patient_id: string
-          role: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          child_data?: Json | null
-          created_at?: string
-          email?: string
-          excel_data?: Json | null
-          id?: string
-          last_assessment_answers?: Json | null
-          last_score?: number | null
-          patient_id?: string
-          role?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
