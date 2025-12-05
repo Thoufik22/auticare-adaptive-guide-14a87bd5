@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Volume2, ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 import { Question, ParentMetadata } from '@/data/questionBanks';
 import { AnswerValue } from '@/utils/scoring';
@@ -17,6 +18,9 @@ interface QuestionnaireProps {
   questions: Question[];
   onComplete: (answers: Record<string, AnswerValue>, metadata?: any) => void;
   onBack: () => void;
+  preFilledAnswers?: Record<string, AnswerValue>;
+  patientId?: string;
+  existingChildData?: ParentMetadata;
 }
 
 interface ClinicianMetadata {
@@ -35,24 +39,53 @@ const answerOptions: { value: AnswerValue; label: string }[] = [
   { value: 'always', label: 'Always' },
 ];
 
-export default function Questionnaire({ role, questions, onComplete, onBack }: QuestionnaireProps) {
-  const [currentStep, setCurrentStep] = useState(role !== 'individual' ? 0 : 1);
-  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+// Dropdown options for Parent Step0
+const ageRangeOptions = ['0-2 years', '3-5 years', '6-8 years', '9-12 years', '13-17 years', '18+ years'];
+const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
+const pronounOptions = ['he/him', 'she/her', 'they/them', 'other'];
+const locationOptions = ['Urban', 'Suburban', 'Rural'];
+const schoolTypeOptions = ['Mainstream', 'Mainstream with Support', 'Special Education', 'Home Schooled', 'Not in School'];
+const conditionOptions = ['ADHD', 'Anxiety', 'Speech delay', 'Sensory Processing', 'Learning Disability', 'Other developmental conditions'];
+
+export default function Questionnaire({ 
+  role, 
+  questions, 
+  onComplete, 
+  onBack,
+  preFilledAnswers = {},
+  patientId,
+  existingChildData
+}: QuestionnaireProps) {
+  // For individual role, include video upload as extra step (16th question)
+  const hasVideoStep = role === 'individual';
+  const hasMetadataStep = role !== 'individual';
+  
+  // Calculate total steps
+  const totalSteps = hasMetadataStep 
+    ? questions.length + 1 
+    : hasVideoStep 
+      ? questions.length + 1 
+      : questions.length;
+
+  const [currentStep, setCurrentStep] = useState(hasMetadataStep ? 0 : 1);
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>(preFilledAnswers);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [predictingVideo, setPredictingVideo] = useState(false);
   const { toast } = useToast();
   
-  // Parent metadata state
-  const [metadata, setMetadata] = useState<ParentMetadata & { videoUrl?: string; videoPrediction?: any }>({
-    childName: '',
-    childAge: '',
-    pronouns: '',
-    homeLanguage: '',
-    schoolType: '',
-    diagnosedConditions: [],
+  // Parent metadata state with dropdown-friendly values
+  const [metadata, setMetadata] = useState<ParentMetadata & { videoUrl?: string; videoPrediction?: any; gender?: string; location?: string }>({
+    childName: existingChildData?.childName || '',
+    childAge: existingChildData?.childAge || '',
+    pronouns: existingChildData?.pronouns || '',
+    homeLanguage: existingChildData?.homeLanguage || 'English',
+    schoolType: existingChildData?.schoolType || '',
+    diagnosedConditions: existingChildData?.diagnosedConditions || [],
     videoUrl: '',
     videoPrediction: null,
+    gender: '',
+    location: '',
   });
 
   // Clinician metadata state
@@ -66,10 +99,53 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
     videoPrediction: null,
   });
 
-  const totalSteps = role !== 'individual' ? questions.length + 1 : questions.length;
+  // Individual video state
+  const [individualVideo, setIndividualVideo] = useState<{ videoUrl?: string; videoPrediction?: any }>({
+    videoUrl: '',
+    videoPrediction: null,
+  });
+
+  // Initialize with pre-filled answers if coming from Excel upload
+  useEffect(() => {
+    if (Object.keys(preFilledAnswers).length > 0) {
+      setAnswers(preFilledAnswers);
+      toast({
+        title: "Data Imported",
+        description: `${Object.keys(preFilledAnswers).length} questions auto-filled from Excel data`,
+      });
+    }
+  }, []);
+
+  // Pre-fill from existing data
+  useEffect(() => {
+    if (existingChildData) {
+      setMetadata(prev => ({
+        ...prev,
+        childName: existingChildData.childName || prev.childName,
+        childAge: existingChildData.childAge || prev.childAge,
+        pronouns: existingChildData.pronouns || prev.pronouns,
+        homeLanguage: existingChildData.homeLanguage || prev.homeLanguage,
+        schoolType: existingChildData.schoolType || prev.schoolType,
+        diagnosedConditions: existingChildData.diagnosedConditions || prev.diagnosedConditions,
+      }));
+    }
+  }, [existingChildData]);
+
   const progress = (currentStep / totalSteps) * 100;
-  const currentQuestionIndex = role !== 'individual' ? currentStep - 1 : currentStep - 1;
+  
+  // Calculate current question index based on role and step
+  const getCurrentQuestionIndex = () => {
+    if (hasMetadataStep) {
+      return currentStep - 1;
+    }
+    return currentStep - 1;
+  };
+  
+  const currentQuestionIndex = getCurrentQuestionIndex();
   const currentQuestion = questions[currentQuestionIndex];
+  
+  // Check if we're on the video step (for individual role)
+  const isVideoStep = hasVideoStep && currentStep === questions.length + 1;
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,7 +194,10 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
         setMetadata({ ...metadata, videoUrl: publicUrl });
       } else if (role === 'clinician') {
         setClinicianMetadata({ ...clinicianMetadata, videoUrl: publicUrl });
+      } else if (role === 'individual') {
+        setIndividualVideo({ ...individualVideo, videoUrl: publicUrl });
       }
+      
       toast({
         title: "Success",
         description: "Video uploaded successfully",
@@ -143,6 +222,8 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
             setMetadata(prev => ({ ...prev, videoPrediction: predictionData }));
           } else if (role === 'clinician') {
             setClinicianMetadata(prev => ({ ...prev, videoPrediction: predictionData }));
+          } else if (role === 'individual') {
+            setIndividualVideo(prev => ({ ...prev, videoPrediction: predictionData }));
           }
           toast({
             title: "Video Analyzed",
@@ -165,18 +246,29 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
 
   const handleNext = () => {
     if (currentStep === totalSteps) {
-      const metadataToSend = role === 'parent' ? metadata : role === 'clinician' ? clinicianMetadata : undefined;
+      // Complete the questionnaire
+      let metadataToSend;
+      if (role === 'parent') {
+        metadataToSend = metadata;
+      } else if (role === 'clinician') {
+        metadataToSend = clinicianMetadata;
+      } else if (role === 'individual') {
+        metadataToSend = individualVideo.videoPrediction ? { videoPrediction: individualVideo.videoPrediction, videoUrl: individualVideo.videoUrl } : undefined;
+      }
       onComplete(answers, metadataToSend);
     } else {
       setCurrentStep((prev) => prev + 1);
-      if (ttsEnabled && currentStep < totalSteps) {
-        speakQuestion(questions[currentQuestionIndex + 1]?.text);
+      if (ttsEnabled && !isVideoStep && currentQuestion) {
+        const nextQuestion = questions[currentQuestionIndex + 1];
+        if (nextQuestion) {
+          speakQuestion(nextQuestion.text);
+        }
       }
     }
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
+    if (currentStep > (hasMetadataStep ? 0 : 1)) {
       setCurrentStep((prev) => prev - 1);
     } else {
       onBack();
@@ -208,9 +300,17 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                clinicianMetadata.problemsFaced;
       }
     }
-    if (currentStep > 0 && currentStep <= questions.length) {
-      return answers[currentQuestion?.id] !== undefined;
+    
+    // Video step (individual role) - optional
+    if (isVideoStep) {
+      return true;
     }
+    
+    // Question steps
+    if (currentStep > 0 && currentQuestionIndex < questions.length && currentQuestion) {
+      return answers[currentQuestion.id] !== undefined;
+    }
+    
     return true;
   };
 
@@ -238,6 +338,7 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
             {role === 'individual' && 'Self-Assessment'}
             {role === 'parent' && 'Caregiver Assessment'}
             {role === 'clinician' && 'Clinical Assessment'}
+            {patientId && <span className="text-sm font-normal text-muted-foreground ml-2">ID: {patientId}</span>}
           </CardTitle>
           
           <div className="space-y-2">
@@ -250,6 +351,7 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* Parent Step 0 - Child Information with Dropdowns */}
           {role === 'parent' && currentStep === 0 ? (
             <div className="space-y-6">
               <h3 className="text-xl font-semibold">Child Information</h3>
@@ -261,28 +363,83 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                   value={metadata.childName}
                   onChange={(e) => setMetadata({ ...metadata, childName: e.target.value })}
                   placeholder="Enter child's name"
+                  disabled={!!existingChildData?.childName}
                 />
+                {existingChildData?.childName && (
+                  <p className="text-xs text-muted-foreground">Name is locked to your account</p>
+                )}
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="childAge">Age *</Label>
-                  <Input
-                    id="childAge"
-                    value={metadata.childAge}
-                    onChange={(e) => setMetadata({ ...metadata, childAge: e.target.value })}
-                    placeholder="e.g., 5 years"
-                  />
+                  <Label htmlFor="childAge">Age Range *</Label>
+                  <Select 
+                    value={metadata.childAge} 
+                    onValueChange={(value) => setMetadata({ ...metadata, childAge: value })}
+                    disabled={!!existingChildData?.childAge}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select age range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ageRangeOptions.map(age => (
+                        <SelectItem key={age} value={age}>{age}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select 
+                    value={metadata.gender || ''} 
+                    onValueChange={(value) => setMetadata({ ...metadata, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {genderOptions.map(g => (
+                        <SelectItem key={g} value={g}>{g}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="pronouns">Pronouns</Label>
-                  <Input
-                    id="pronouns"
-                    value={metadata.pronouns}
-                    onChange={(e) => setMetadata({ ...metadata, pronouns: e.target.value })}
-                    placeholder="e.g., he/him, she/her, they/them"
-                  />
+                  <Select 
+                    value={metadata.pronouns} 
+                    onValueChange={(value) => setMetadata({ ...metadata, pronouns: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pronouns" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pronounOptions.map(p => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location Type</Label>
+                  <Select 
+                    value={metadata.location || ''} 
+                    onValueChange={(value) => setMetadata({ ...metadata, location: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationOptions.map(l => (
+                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -299,12 +456,19 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
 
                 <div className="space-y-2">
                   <Label htmlFor="schoolType">School/Setting Type</Label>
-                  <Input
-                    id="schoolType"
-                    value={metadata.schoolType}
-                    onChange={(e) => setMetadata({ ...metadata, schoolType: e.target.value })}
-                    placeholder="e.g., mainstream, special education"
-                  />
+                  <Select 
+                    value={metadata.schoolType} 
+                    onValueChange={(value) => setMetadata({ ...metadata, schoolType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select school type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schoolTypeOptions.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -312,7 +476,7 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                 <Label>Diagnosed Conditions (if any)</Label>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    {['ADHD', 'Anxiety', 'Speech delay', 'Other developmental conditions'].map((condition) => (
+                    {conditionOptions.map((condition) => (
                       <div key={condition} className="flex items-center space-x-2">
                         <Checkbox
                           id={condition}
@@ -356,8 +520,7 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                     {metadata.videoPrediction && (
                       <p className="text-sm text-green-600">✓ Video analysis complete (Score: {metadata.videoPrediction.prediction_score?.toFixed(1)})</p>
                     )}
-                    {uploading && <p className="text-xs text-muted-foreground">Uploading...</p>}
-                    {metadata.videoUrl && (
+                    {metadata.videoUrl && !metadata.videoPrediction && !predictingVideo && (
                       <p className="text-xs text-green-600">✓ Video uploaded successfully</p>
                     )}
                   </div>
@@ -365,40 +528,55 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
               </div>
             </div>
           ) : role === 'clinician' && currentStep === 0 ? (
+            // Clinician Step 0
             <div className="space-y-6">
-              <h3 className="text-xl font-semibold">Child Information</h3>
+              <h3 className="text-xl font-semibold">Patient Information</h3>
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="clinician-childName">Child's Name *</Label>
+                  <Label htmlFor="clinician-childName">Patient Name *</Label>
                   <Input
                     id="clinician-childName"
                     value={clinicianMetadata.childName}
                     onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, childName: e.target.value })}
-                    placeholder="Enter child's name"
+                    placeholder="Enter patient's name"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="clinician-childAge">Child's Age *</Label>
-                  <Input
-                    id="clinician-childAge"
-                    value={clinicianMetadata.childAge}
-                    onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, childAge: e.target.value })}
-                    placeholder="e.g., 5 years"
-                  />
+                  <Label htmlFor="clinician-childAge">Patient Age *</Label>
+                  <Select 
+                    value={clinicianMetadata.childAge} 
+                    onValueChange={(value) => setClinicianMetadata({ ...clinicianMetadata, childAge: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select age range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ageRangeOptions.map(age => (
+                        <SelectItem key={age} value={age}>{age}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="clinician-pronoun">Pronoun *</Label>
-                  <Input
-                    id="clinician-pronoun"
-                    value={clinicianMetadata.pronoun}
-                    onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, pronoun: e.target.value })}
-                    placeholder="he/him, she/her, they/them"
-                  />
+                  <Select 
+                    value={clinicianMetadata.pronoun} 
+                    onValueChange={(value) => setClinicianMetadata({ ...clinicianMetadata, pronoun: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pronoun" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pronounOptions.map(p => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -413,12 +591,12 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="clinician-problemsFaced">Problems/Challenges Faced by Child *</Label>
+                <Label htmlFor="clinician-problemsFaced">Problems/Challenges Faced by Patient *</Label>
                 <Input
                   id="clinician-problemsFaced"
                   value={clinicianMetadata.problemsFaced}
                   onChange={(e) => setClinicianMetadata({ ...clinicianMetadata, problemsFaced: e.target.value })}
-                  placeholder="Describe the challenges the child is facing"
+                  placeholder="Describe the challenges the patient is facing"
                 />
               </div>
 
@@ -429,7 +607,7 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                     <div className="flex items-center gap-2">
                       <Upload className="w-4 h-4 text-muted-foreground" />
                       <Label htmlFor="clinician-video" className="text-sm text-muted-foreground cursor-pointer hover:text-foreground">
-                        Upload a short video of the child for enhanced ML-powered assessment
+                        Upload a short video of the patient for enhanced ML-powered assessment
                       </Label>
                     </div>
                     <Input
@@ -452,12 +630,48 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                 </div>
               </div>
             </div>
+          ) : isVideoStep ? (
+            // Individual Video Upload Step (16th step)
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold">Video Upload (Optional)</h3>
+              <p className="text-muted-foreground">
+                Upload a short video for enhanced ML-powered assessment. This step is optional but can improve the accuracy of your results.
+              </p>
+              
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <Input
+                  id="individual-video"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  disabled={uploading || predictingVideo}
+                  className="max-w-xs mx-auto"
+                />
+                <p className="text-sm text-muted-foreground mt-2">Max file size: 20MB</p>
+              </div>
+              
+              {uploading && <p className="text-center text-muted-foreground">Uploading video...</p>}
+              {predictingVideo && <p className="text-center text-muted-foreground">🤖 Analyzing video with ML model...</p>}
+              {individualVideo.videoPrediction && (
+                <p className="text-center text-green-600">✓ Video analysis complete (Score: {individualVideo.videoPrediction.prediction_score?.toFixed(1)})</p>
+              )}
+              {individualVideo.videoUrl && !individualVideo.videoPrediction && !predictingVideo && (
+                <p className="text-center text-green-600">✓ Video uploaded successfully</p>
+              )}
+            </div>
           ) : currentQuestion ? (
+            // Question Display
             <div className="space-y-6">
               <div className="min-h-[120px]">
                 <h3 className="text-xl font-medium leading-relaxed">
                   {currentQuestion.text}
                 </h3>
+                {preFilledAnswers[currentQuestion.id] && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    (Auto-filled from Excel data)
+                  </p>
+                )}
               </div>
 
               <RadioGroup
@@ -468,7 +682,9 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
                 {answerOptions.map((option) => (
                   <div
                     key={option.value}
-                    className="flex items-center space-x-3 p-4 rounded-lg border-2 hover:bg-accent/50 transition-colors cursor-pointer"
+                    className={`flex items-center space-x-3 p-4 rounded-lg border-2 hover:bg-accent/50 transition-colors cursor-pointer ${
+                      preFilledAnswers[currentQuestion.id] === option.value ? 'border-primary bg-primary/5' : ''
+                    }`}
                     onClick={() => handleAnswer(currentQuestion.id, option.value)}
                   >
                     <RadioGroupItem value={option.value} id={option.value} />
@@ -500,8 +716,8 @@ export default function Questionnaire({ role, questions, onComplete, onBack }: Q
               size="lg"
               className="bg-primary hover:bg-primary/90"
             >
-              {currentStep === totalSteps ? 'Complete' : 'Next'}
-              {currentStep !== totalSteps && <ArrowRight className="w-4 h-4 ml-2" />}
+              {currentStep === totalSteps ? 'Complete' : isVideoStep ? 'Skip & Complete' : 'Next'}
+              {currentStep !== totalSteps && !isVideoStep && <ArrowRight className="w-4 h-4 ml-2" />}
             </Button>
           </div>
         </CardContent>
