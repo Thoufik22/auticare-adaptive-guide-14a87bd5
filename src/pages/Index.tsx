@@ -8,10 +8,10 @@ import ResultModal from '@/components/ResultModal';
 import Dashboard from '@/components/Dashboard';
 import CalmZone from '@/components/CalmZone';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { individualQuestions, parentQuestions, getQuestionWeights, ParentMetadata } from '@/data/questionBanks';
 import { calculateScore, ScoringResult, Answer, AnswerValue } from '@/utils/scoring';
-import { Sparkles, LogOut, AlertCircle } from 'lucide-react';
+import { calculateFusedScore, getSeverityFromScore } from '@/utils/fusedScoring';
+import { LogOut, AlertCircle } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserAssessmentData } from '@/hooks/useUserAssessmentData';
@@ -35,7 +35,6 @@ export default function Index() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [scoringResult, setScoringResult] = useState<ScoringResult | null>(null);
   const [parentMetadata, setParentMetadata] = useState<ParentMetadata | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [patientId, setPatientId] = useState<string>('');
@@ -52,20 +51,41 @@ export default function Index() {
     clearAssessmentData 
   } = useUserAssessmentData(user);
 
-  // Auto-redirect to dashboard if user has existing data with a score
+  // Auto-redirect to dashboard if user has existing completed assessment
   useEffect(() => {
-    if (hasExistingData && assessmentData && assessmentData.last_score !== null) {
+    if (hasExistingData && assessmentData && assessmentData.assessment_complete) {
       setSelectedRole(assessmentData.role as Role);
       setPatientId(assessmentData.patient_id);
       
-      // Reconstruct the scoring result from saved data
+      // Reconstruct the scoring result from saved data using fused score
       if (assessmentData.last_assessment_answers) {
         const questionWeights = getQuestionWeights(assessmentData.role as Role);
         const answerArray: Answer[] = Object.entries(assessmentData.last_assessment_answers).map(([questionId, value]) => ({
           questionId,
           value: value as AnswerValue,
         }));
-        const result = calculateScore(answerArray, questionWeights, false);
+        
+        // Use stored fused score if available, otherwise calculate
+        const storedFusedScore = assessmentData.fused_score;
+        const storedModelScore = assessmentData.model_score;
+        const storedQuestionnaireScore = assessmentData.questionnaire_score;
+        
+        // Build video prediction object from stored data
+        const videoPrediction = storedModelScore ? {
+          prediction_score: storedModelScore,
+          confidence: 0.7
+        } : undefined;
+        
+        const result = calculateScore(answerArray, questionWeights, false, videoPrediction);
+        
+        // Override with stored fused score if available
+        if (storedFusedScore !== null && storedFusedScore !== undefined) {
+          result.fusedScore = storedFusedScore;
+          const severity = getSeverityFromScore(storedFusedScore);
+          result.severity = severity.level as ScoringResult['severity'];
+          result.severityLabel = severity.label;
+        }
+        
         setScoringResult(result);
         
         if (assessmentData.child_data) {
@@ -168,9 +188,21 @@ export default function Index() {
     const hasFamilyHistory = selectedRole === 'parent' && answers['par_20'] === 'always';
     const videoPrediction = metadata?.videoPrediction;
     const result = calculateScore(answerArray, questionWeights, hasFamilyHistory, videoPrediction);
+    
+    // Calculate fused score using the formula: 60% questionnaire + 40% model
+    const modelScore = videoPrediction?.prediction_score || null;
+    const modelConfidence = videoPrediction?.confidence || 0.7;
+    const fusedScore = calculateFusedScore(result.normalizedScore, modelScore, modelConfidence);
+    
+    // Update result with fused score
+    result.fusedScore = fusedScore;
+    const fusedSeverity = getSeverityFromScore(fusedScore);
+    result.severity = fusedSeverity.level as ScoringResult['severity'];
+    result.severityLabel = fusedSeverity.label;
+    
     setScoringResult(result);
 
-    // Save assessment data to database
+    // Save assessment data to database with fused scoring
     if (user) {
       await saveAssessmentData(
         user.email || '',
@@ -179,7 +211,9 @@ export default function Index() {
         metadata,
         excelData,
         answers,
-        result.normalizedScore
+        result.normalizedScore,
+        modelScore ? Math.round(modelScore) : null,
+        Math.round(fusedScore)
       );
     }
 
@@ -213,79 +247,6 @@ export default function Index() {
   };
 
   const handleBackToDashboard = () => {
-    setAppState('dashboard');
-  };
-
-  const activateDemoMode = () => {
-    setDemoMode(true);
-    const demoAnswers: Record<string, AnswerValue> = {};
-    individualQuestions.forEach((q, index) => {
-      demoAnswers[q.id] = index % 3 === 0 ? 'never' : index % 3 === 1 ? 'rarely' : 'sometimes';
-    });
-    
-    const questionWeights = getQuestionWeights('individual');
-    const answerArray: Answer[] = Object.entries(demoAnswers).map(([questionId, value]) => ({
-      questionId,
-      value,
-    }));
-    
-    const result = calculateScore(answerArray, questionWeights, false);
-    setSelectedRole('individual');
-    setScoringResult(result);
-    setAppState('dashboard');
-  };
-
-  const activateDemoParent = () => {
-    setDemoMode(true);
-    const demoAnswers: Record<string, AnswerValue> = {};
-    parentQuestions.forEach((q, index) => {
-      demoAnswers[q.id] = index % 2 === 0 ? 'often' : 'sometimes';
-    });
-    
-    const questionWeights = getQuestionWeights('parent');
-    const answerArray: Answer[] = Object.entries(demoAnswers).map(([questionId, value]) => ({
-      questionId,
-      value,
-    }));
-    
-    const result = calculateScore(answerArray, questionWeights, true);
-    setSelectedRole('parent');
-    setParentMetadata({
-      childName: 'Alex',
-      childAge: '3-5 years',
-      pronouns: 'they/them',
-      homeLanguage: 'English',
-      schoolType: 'Mainstream',
-      diagnosedConditions: ['ADHD'],
-    });
-    setScoringResult(result);
-    setAppState('dashboard');
-  };
-
-  const activateDemoHigh = () => {
-    setDemoMode(true);
-    const demoAnswers: Record<string, AnswerValue> = {};
-    parentQuestions.forEach((q) => {
-      demoAnswers[q.id] = 'always';
-    });
-    
-    const questionWeights = getQuestionWeights('parent');
-    const answerArray: Answer[] = Object.entries(demoAnswers).map(([questionId, value]) => ({
-      questionId,
-      value,
-    }));
-    
-    const result = calculateScore(answerArray, questionWeights, true);
-    setSelectedRole('parent');
-    setParentMetadata({
-      childName: 'Jordan',
-      childAge: '3-5 years',
-      pronouns: 'he/him',
-      homeLanguage: 'English',
-      schoolType: 'Special Education',
-      diagnosedConditions: ['Speech delay', 'Anxiety'],
-    });
-    setScoringResult(result);
     setAppState('dashboard');
   };
 
@@ -345,42 +306,6 @@ export default function Index() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Demo Mode Toggle */}
-      {appState === 'role-selection' && (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
-          <Badge variant="outline" className="bg-background">
-            <Sparkles className="w-3 h-3 mr-1" />
-            Demo Mode
-          </Badge>
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={activateDemoMode}
-              className="bg-mint hover:bg-mint/90"
-            >
-              Demo: Low
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={activateDemoParent}
-              className="bg-lavender hover:bg-lavender/90"
-            >
-              Demo: Moderate
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={activateDemoHigh}
-              className="bg-coral hover:bg-coral/90 text-white"
-            >
-              Demo: High
-            </Button>
-          </div>
-        </div>
-      )}
 
       {appState === 'role-selection' && (
         <RoleSelection onSelectRole={handleRoleSelection} />
