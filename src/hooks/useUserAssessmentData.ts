@@ -12,6 +12,10 @@ export interface UserAssessmentData {
   excel_data: Record<string, any> | null;
   last_assessment_answers: Record<string, any> | null;
   last_score: number | null;
+  questionnaire_score: number | null;
+  model_score: number | null;
+  fused_score: number | null;
+  assessment_complete: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -66,7 +70,9 @@ export function useUserAssessmentData(user: User | null) {
     childData?: Record<string, any>,
     excelData?: Record<string, any> | null,
     answers?: Record<string, any>,
-    score?: number
+    questionnaireScore?: number,
+    modelScore?: number | null,
+    fusedScore?: number
   ) => {
     if (!user) return { success: false, error: 'Not authenticated' };
 
@@ -77,17 +83,23 @@ export function useUserAssessmentData(user: User | null) {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      const dataToSave = {
+        child_data: childData || {},
+        excel_data: excelData,
+        last_assessment_answers: answers || null,
+        last_score: questionnaireScore || null,
+        questionnaire_score: questionnaireScore || null,
+        model_score: modelScore ?? null,
+        fused_score: fusedScore || questionnaireScore || null,
+        assessment_complete: true,
+        updated_at: new Date().toISOString()
+      };
+
       if (existingData.data) {
         // Update existing record
         const { error } = await supabase
           .from('user_assessment_data')
-          .update({
-            child_data: childData || {},
-            excel_data: excelData,
-            last_assessment_answers: answers || null,
-            last_score: score || null,
-            updated_at: new Date().toISOString()
-          })
+          .update(dataToSave)
           .eq('user_id', user.id);
 
         if (error) throw error;
@@ -100,10 +112,7 @@ export function useUserAssessmentData(user: User | null) {
             email,
             role,
             patient_id: patientId,
-            child_data: childData || {},
-            excel_data: excelData,
-            last_assessment_answers: answers || null,
-            last_score: score || null
+            ...dataToSave
           });
 
         if (error) throw error;
