@@ -53,22 +53,22 @@ export default function Index() {
 
   // Auto-redirect to dashboard if user has existing completed assessment
   useEffect(() => {
-    if (hasExistingData && assessmentData && assessmentData.assessment_complete) {
+    if (!loadingAssessmentData && hasExistingData && assessmentData) {
+      // Set role and patient ID from stored data
       setSelectedRole(assessmentData.role as Role);
       setPatientId(assessmentData.patient_id);
       
-      // Reconstruct the scoring result from saved data using fused score
-      if (assessmentData.last_assessment_answers) {
+      // If assessment is complete, go directly to dashboard
+      if (assessmentData.assessment_complete && assessmentData.last_assessment_answers) {
         const questionWeights = getQuestionWeights(assessmentData.role as Role);
         const answerArray: Answer[] = Object.entries(assessmentData.last_assessment_answers).map(([questionId, value]) => ({
           questionId,
           value: value as AnswerValue,
         }));
         
-        // Use stored fused score if available, otherwise calculate
+        // Use stored fused score if available
         const storedFusedScore = assessmentData.fused_score;
         const storedModelScore = assessmentData.model_score;
-        const storedQuestionnaireScore = assessmentData.questionnaire_score;
         
         // Build video prediction object from stored data
         const videoPrediction = storedModelScore ? {
@@ -99,7 +99,7 @@ export default function Index() {
         });
       }
     }
-  }, [hasExistingData, assessmentData]);
+  }, [loadingAssessmentData, hasExistingData, assessmentData]);
 
   const handleAuthSuccess = (authenticatedUser: User, role: string) => {
     setUser(authenticatedUser);
