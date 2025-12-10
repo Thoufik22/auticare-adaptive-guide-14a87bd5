@@ -41,6 +41,7 @@ export default function Index() {
   const [excelAnswers, setExcelAnswers] = useState<Record<string, AnswerValue>>({});
   const [excelData, setExcelData] = useState<Record<string, any> | null>(null);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [isFirstTimeAssessment, setIsFirstTimeAssessment] = useState(true);
   const { toast } = useToast();
 
   const { 
@@ -51,9 +52,12 @@ export default function Index() {
     clearAssessmentData 
   } = useUserAssessmentData(user);
 
-  // Auto-redirect to dashboard ONLY if user has existing COMPLETED assessment (login flow)
+  // Auto-redirect to dashboard ONLY if user has existing COMPLETED assessment (login flow - returning users only)
   useEffect(() => {
     if (!loadingAssessmentData && hasExistingData && assessmentData && assessmentData.assessment_complete) {
+      // This is a returning user - not first time
+      setIsFirstTimeAssessment(false);
+      
       // Set role and patient ID from stored data
       setSelectedRole(assessmentData.role as Role);
       setPatientId(assessmentData.patient_id);
@@ -215,11 +219,14 @@ export default function Index() {
       );
     }
 
-    // Always show results page after questionnaire completion
+    // Always show results page after questionnaire completion (first time assessment)
+    setIsFirstTimeAssessment(true);
     setAppState('results');
   };
 
   const handleResultsClose = () => {
+    // Mark as no longer first time when going to dashboard
+    setIsFirstTimeAssessment(false);
     setAppState('dashboard');
   };
 
@@ -353,6 +360,7 @@ export default function Index() {
           result={scoringResult}
           metadata={parentMetadata || undefined}
           onNavigateToCalmZone={handleNavigateToCalmZone}
+          userName={user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
         />
       )}
 
