@@ -51,26 +51,24 @@ export default function Index() {
     clearAssessmentData 
   } = useUserAssessmentData(user);
 
-  // Auto-redirect to dashboard if user has existing completed assessment
+  // Auto-redirect to dashboard ONLY if user has existing COMPLETED assessment (login flow)
   useEffect(() => {
-    if (!loadingAssessmentData && hasExistingData && assessmentData) {
+    if (!loadingAssessmentData && hasExistingData && assessmentData && assessmentData.assessment_complete) {
       // Set role and patient ID from stored data
       setSelectedRole(assessmentData.role as Role);
       setPatientId(assessmentData.patient_id);
       
-      // If assessment is complete, go directly to dashboard
-      if (assessmentData.assessment_complete && assessmentData.last_assessment_answers) {
+      // Reconstruct the scoring result from saved data
+      if (assessmentData.last_assessment_answers) {
         const questionWeights = getQuestionWeights(assessmentData.role as Role);
         const answerArray: Answer[] = Object.entries(assessmentData.last_assessment_answers).map(([questionId, value]) => ({
           questionId,
           value: value as AnswerValue,
         }));
         
-        // Use stored fused score if available
         const storedFusedScore = assessmentData.fused_score;
         const storedModelScore = assessmentData.model_score;
         
-        // Build video prediction object from stored data
         const videoPrediction = storedModelScore ? {
           prediction_score: storedModelScore,
           confidence: 0.7
@@ -78,7 +76,6 @@ export default function Index() {
         
         const result = calculateScore(answerArray, questionWeights, false, videoPrediction);
         
-        // Override with stored fused score if available
         if (storedFusedScore !== null && storedFusedScore !== undefined) {
           result.fusedScore = storedFusedScore;
           const severity = getSeverityFromScore(storedFusedScore);
@@ -92,6 +89,7 @@ export default function Index() {
           setParentMetadata(assessmentData.child_data as unknown as ParentMetadata);
         }
         
+        // Go directly to dashboard for returning users with completed assessment
         setAppState('dashboard');
         toast({
           title: "Welcome back!",
@@ -101,10 +99,10 @@ export default function Index() {
     }
   }, [loadingAssessmentData, hasExistingData, assessmentData]);
 
-  const handleAuthSuccess = (authenticatedUser: User, role: string) => {
+  const handleAuthSuccess = (authenticatedUser: User) => {
     setUser(authenticatedUser);
     setIsAuthenticated(true);
-    setSelectedRole(role as Role);
+    // Don't set role here - let user select after auth
   };
 
   const handleLogout = async () => {
@@ -217,6 +215,7 @@ export default function Index() {
       );
     }
 
+    // Always show results page after questionnaire completion
     setAppState('results');
   };
 
