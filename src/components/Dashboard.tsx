@@ -196,15 +196,15 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8 pt-16">
       <AccessibilityControls />
-      <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
+      <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">
               {role === 'individual' && 'My Dashboard'}
-              {role === 'parent' && `${metadata?.childName}'s Dashboard`}
+              {role === 'parent' && `${metadata?.childName || 'Child'}'s Dashboard`}
               {role === 'clinician' && 'Clinical Dashboard'}
             </h1>
             <p className="text-muted-foreground">
@@ -212,7 +212,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
             </p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             {result.normalizedScore > 70 && (
               <Button 
                 variant="outline" 
@@ -239,38 +239,39 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
         {/* Score Summary Card */}
         <Card className={`border-2 border-${accentColor}`}>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <CardTitle>Current Assessment</CardTitle>
+                <CardTitle className="text-xl">Current Assessment</CardTitle>
                 <CardDescription>Based on your recent evaluation</CardDescription>
               </div>
-              <div className={`text-5xl font-bold text-${accentColor}`}>
+              <div className={`text-4xl md:text-5xl font-bold text-${accentColor}`}>
                 {result.normalizedScore}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Badge className={`bg-${accentColor} text-${accentColor}-foreground text-lg px-4 py-2`}>
+            <Badge className={`bg-${accentColor} text-${accentColor}-foreground text-base md:text-lg px-4 py-2`}>
               {result.severityLabel}
             </Badge>
           </CardContent>
         </Card>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Today's Schedule */}
-          <Card className="md:col-span-2">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Today's Schedule - Takes 2 columns on large screens */}
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <Calendar className="w-5 h-5" />
                     Today's Schedule
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="mt-1">
                     {schedule.description}
                   </CardDescription>
                 </div>
-                <Badge variant="outline">
+                <Badge variant="outline" className="whitespace-nowrap">
                   {schedule.level} Complexity
                 </Badge>
               </div>
@@ -292,13 +293,13 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Quick Actions Sidebar */}
           <div className="space-y-6">
             <MoodCheck result={result} />
 
             <Card className={`bg-${accentColor}/10 border-${accentColor}`}>
-              <CardHeader>
-                <CardTitle>Calm Zone</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Calm Zone</CardTitle>
                 <CardDescription>
                   Take a mindful break
                 </CardDescription>
@@ -313,24 +314,24 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
               </CardContent>
             </Card>
 
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-medium">Today's Progress</span>
-                <span className="text-muted-foreground">2/{tasks.length}</span>
-              </div>
-              <Progress value={(2 / tasks.length) * 100} className="h-2" />
-            </div>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="font-medium">Today's Progress</span>
+                  <span className="text-muted-foreground">2/{tasks.length}</span>
+                </div>
+                <Progress value={(2 / tasks.length) * 100} className="h-2" />
+              </CardContent>
+            </Card>
 
             <ProgressChart history={history} trend={trend} />
           </div>
         </div>
 
-        {/* Reminders, Timer, and Community Resources */}
-        <div className="grid md:grid-cols-3 gap-6">
+        {/* Secondary Content Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Reminders />
-          <div className="space-y-6">
-            <Timer />
-          </div>
+          <Timer />
           <CommunityResources severity={result.severity} />
         </div>
 

@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
 
 interface AuthProps {
-  onAuthSuccess: (user: User, role: string) => void;
+  onAuthSuccess: (user: User) => void;
 }
 
 export function Auth({ onAuthSuccess }: AuthProps) {
@@ -23,14 +22,12 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Signup states
-  const [signupRole, setSignupRole] = useState<"individual" | "parent" | "clinician">("individual");
+  // Signup states - simplified: only name, age, language, email, password
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupName, setSignupName] = useState("");
   const [signupAge, setSignupAge] = useState("");
   const [signupLanguage, setSignupLanguage] = useState("English");
-  const [signupPronoun, setSignupPronoun] = useState("");
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -39,7 +36,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
       
       if (session?.user) {
         setTimeout(() => {
-          fetchUserProfile(session.user.id, session.user);
+          onAuthSuccess(session.user);
         }, 0);
       }
     });
@@ -48,41 +45,12 @@ export function Auth({ onAuthSuccess }: AuthProps) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserProfile(session.user.id, session.user);
+        onAuthSuccess(session.user);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchUserProfile = async (userId: string, currentUser: User) => {
-    // First check user_assessment_data for existing completed assessment
-    const { data: assessmentData } = await supabase
-      .from('user_assessment_data')
-      .select('role, assessment_complete')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (assessmentData && assessmentData.role) {
-      // User has assessment data - use that role
-      onAuthSuccess(currentUser, assessmentData.role);
-      return;
-    }
-
-    // Fallback to profiles table
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (data && !error) {
-      onAuthSuccess(currentUser, data.role);
-    } else {
-      // No profile yet, still call onAuthSuccess with a default - Index.tsx will handle role selection
-      onAuthSuccess(currentUser, 'individual');
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,19 +81,11 @@ export function Auth({ onAuthSuccess }: AuthProps) {
     e.preventDefault();
     setLoading(true);
 
-    const metadata: any = {
+    const metadata = {
       name: signupName,
-      role: signupRole,
+      age: signupAge ? parseInt(signupAge) : null,
       language: signupLanguage,
     };
-
-    if (signupRole === "individual" && signupAge) {
-      metadata.age = parseInt(signupAge);
-    }
-
-    if (signupRole === "clinician" && signupPronoun) {
-      metadata.pronoun = signupPronoun;
-    }
 
     const redirectUrl = `${window.location.origin}/`;
 
@@ -201,46 +161,30 @@ export function Auth({ onAuthSuccess }: AuthProps) {
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-role">I am a...</Label>
-                  <Select value={signupRole} onValueChange={(value: any) => setSignupRole(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="individual">Individual</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="clinician">Clinician</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">{signupRole === "clinician" ? "Child's Name" : "Name"}</Label>
+                  <Label htmlFor="signup-name">Name</Label>
                   <Input
                     id="signup-name"
                     type="text"
-                    placeholder="Enter name"
+                    placeholder="Enter your name"
                     value={signupName}
                     onChange={(e) => setSignupName(e.target.value)}
                     required
                   />
                 </div>
 
-                {signupRole === "individual" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-age">Age</Label>
-                    <Input
-                      id="signup-age"
-                      type="number"
-                      placeholder="Enter age"
-                      value={signupAge}
-                      onChange={(e) => setSignupAge(e.target.value)}
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="signup-age">Age</Label>
+                  <Input
+                    id="signup-age"
+                    type="number"
+                    placeholder="Enter your age"
+                    value={signupAge}
+                    onChange={(e) => setSignupAge(e.target.value)}
+                  />
+                </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-language">{signupRole === "clinician" ? "Home Language" : "Language"}</Label>
+                  <Label htmlFor="signup-language">Language</Label>
                   <Input
                     id="signup-language"
                     type="text"
@@ -250,19 +194,6 @@ export function Auth({ onAuthSuccess }: AuthProps) {
                     required
                   />
                 </div>
-
-                {signupRole === "clinician" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-pronoun">Pronoun</Label>
-                    <Input
-                      id="signup-pronoun"
-                      type="text"
-                      placeholder="he/him, she/her, they/them"
-                      value={signupPronoun}
-                      onChange={(e) => setSignupPronoun(e.target.value)}
-                    />
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
