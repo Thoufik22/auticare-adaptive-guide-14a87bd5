@@ -39,7 +39,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
       
       if (session?.user) {
         setTimeout(() => {
-          fetchUserProfile(session.user.id);
+          fetchUserProfile(session.user.id, session.user);
         }, 0);
       }
     });
@@ -48,14 +48,28 @@ export function Auth({ onAuthSuccess }: AuthProps) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, currentUser: User) => {
+    // First check user_assessment_data for existing completed assessment
+    const { data: assessmentData } = await supabase
+      .from('user_assessment_data')
+      .select('role, assessment_complete')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (assessmentData && assessmentData.role) {
+      // User has assessment data - use that role
+      onAuthSuccess(currentUser, assessmentData.role);
+      return;
+    }
+
+    // Fallback to profiles table
     const { data, error } = await supabase
       .from('profiles')
       .select('role')
@@ -63,7 +77,10 @@ export function Auth({ onAuthSuccess }: AuthProps) {
       .maybeSingle();
 
     if (data && !error) {
-      onAuthSuccess(user!, data.role);
+      onAuthSuccess(currentUser, data.role);
+    } else {
+      // No profile yet, still call onAuthSuccess with a default - Index.tsx will handle role selection
+      onAuthSuccess(currentUser, 'individual');
     }
   };
 
