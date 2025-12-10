@@ -23,9 +23,10 @@ interface DashboardProps {
   result: ScoringResult;
   metadata?: ParentMetadata;
   onNavigateToCalmZone: () => void;
+  userName?: string;
 }
 
-export default function Dashboard({ role, result, metadata, onNavigateToCalmZone }: DashboardProps) {
+export default function Dashboard({ role, result, metadata, onNavigateToCalmZone, userName = 'User' }: DashboardProps) {
   const schedule = getScheduleComplexity(result.severity);
   const { addEntry, history, getTrend } = useProgressTracking();
   const [showGames, setShowGames] = useState(false);
@@ -203,11 +204,14 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-2">
+              {userName} - {role === 'individual' ? 'Individual' : role === 'parent' ? 'Parent/Caregiver' : 'Clinical Guardian'}
+            </h1>
+            <p className="text-lg text-muted-foreground mb-1">
               {role === 'individual' && 'My Dashboard'}
               {role === 'parent' && `${metadata?.childName || 'Child'}'s Dashboard`}
               {role === 'clinician' && 'Clinical Dashboard'}
-            </h1>
-            <p className="text-muted-foreground">
+            </p>
+            <p className="text-sm text-muted-foreground">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>

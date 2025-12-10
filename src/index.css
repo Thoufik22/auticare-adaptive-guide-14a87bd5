@@ -93,6 +93,31 @@ All colors MUST be HSL.
   }
 }
 
+/* AutiCare Title Color Animation */
+@keyframes auticare-gradient {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.auticare-title-animated {
+  background: linear-gradient(
+    90deg,
+    hsl(207 70% 50%),
+    hsl(162 50% 55%),
+    hsl(250 50% 70%),
+    hsl(207 70% 50%)
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: auticare-gradient 6s ease-in-out infinite;
+}
+
 /* Accessibility: High Contrast Mode */
 .high-contrast {
   --background: 0 0% 100%;
