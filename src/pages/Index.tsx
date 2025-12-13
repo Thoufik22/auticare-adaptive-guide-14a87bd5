@@ -54,7 +54,8 @@ export default function Index() {
 
   // Auto-redirect to dashboard ONLY if user has existing COMPLETED assessment (login flow - returning users only)
   useEffect(() => {
-    if (!loadingAssessmentData && hasExistingData && assessmentData && assessmentData.assessment_complete) {
+    // Only auto-redirect if appState is still at initial state (role-selection)
+    if (!loadingAssessmentData && hasExistingData && assessmentData && assessmentData.assessment_complete && appState === 'role-selection') {
       // This is a returning user - not first time
       setIsFirstTimeAssessment(false);
       
@@ -101,7 +102,7 @@ export default function Index() {
         });
       }
     }
-  }, [loadingAssessmentData, hasExistingData, assessmentData]);
+  }, [loadingAssessmentData, hasExistingData, assessmentData, appState]);
 
   const handleAuthSuccess = (authenticatedUser: User) => {
     setUser(authenticatedUser);
@@ -219,13 +220,21 @@ export default function Index() {
       );
     }
 
-    // Always show results page after questionnaire completion (first time assessment)
-    setIsFirstTimeAssessment(true);
+    // Always show results page after questionnaire completion
     setAppState('results');
   };
 
+  const handleStartNewAssessment = () => {
+    // Allow user to retake assessment from dashboard
+    if (selectedRole === 'clinician') {
+      setAppState('excel-upload');
+    } else {
+      setAppState('questionnaire');
+    }
+  };
+
   const handleResultsClose = () => {
-    // Mark as no longer first time when going to dashboard
+    // Go to dashboard when user clicks button
     setIsFirstTimeAssessment(false);
     setAppState('dashboard');
   };
@@ -361,6 +370,7 @@ export default function Index() {
           metadata={parentMetadata || undefined}
           onNavigateToCalmZone={handleNavigateToCalmZone}
           userName={user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
+          onStartAssessment={handleStartNewAssessment}
         />
       )}
 
