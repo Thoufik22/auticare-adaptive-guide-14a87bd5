@@ -74,6 +74,45 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_reports: {
+        Row: {
+          answers: Json
+          application_number: string
+          created_at: string
+          home_language: string | null
+          id: string
+          patient_age: string
+          patient_name: string
+          problems_faced: string | null
+          pronoun: string | null
+          video_url: string | null
+        }
+        Insert: {
+          answers: Json
+          application_number: string
+          created_at?: string
+          home_language?: string | null
+          id?: string
+          patient_age: string
+          patient_name: string
+          problems_faced?: string | null
+          pronoun?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          answers?: Json
+          application_number?: string
+          created_at?: string
+          home_language?: string | null
+          id?: string
+          patient_age?: string
+          patient_name?: string
+          problems_faced?: string | null
+          pronoun?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null

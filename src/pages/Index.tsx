@@ -3,6 +3,7 @@ import { Auth } from '@/components/Auth';
 import RoleSelection from '@/components/RoleSelection';
 import PatientIdEntry from '@/components/PatientIdEntry';
 import ExcelUpload from '@/components/ExcelUpload';
+import ReportLookup from '@/components/ReportLookup';
 import Questionnaire from '@/components/Questionnaire';
 import ResultModal from '@/components/ResultModal';
 import Dashboard from '@/components/Dashboard';
@@ -27,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AppState = 'role-selection' | 'patient-id' | 'excel-upload' | 'questionnaire' | 'results' | 'dashboard' | 'calm-zone';
+type AppState = 'role-selection' | 'patient-id' | 'report-lookup' | 'excel-upload' | 'questionnaire' | 'results' | 'dashboard' | 'calm-zone';
 type Role = 'individual' | 'parent' | 'clinician';
 
 export default function Index() {
@@ -163,12 +164,77 @@ export default function Index() {
   const handlePatientIdConfirm = (confirmedPatientId: string) => {
     setPatientId(confirmedPatientId);
     
-    // For clinicians, go to Excel upload first
+    // For clinicians, go to Report Lookup first (RAG-based)
     if (selectedRole === 'clinician') {
-      setAppState('excel-upload');
+      setAppState('report-lookup');
     } else {
       setAppState('questionnaire');
     }
+  };
+
+  const handleReportFound = async (
+    answers: Record<string, AnswerValue>,
+    metadata: {
+      childName: string;
+      childAge: string;
+      pronoun: string;
+      homeLanguage: string;
+      problemsFaced: string;
+      videoUrl?: string;
+    }
+  ) => {
+    // Set metadata for clinician
+    const clinicianMetadata: ParentMetadata = {
+      childName: metadata.childName,
+      childAge: metadata.childAge,
+      pronouns: metadata.pronoun,
+      homeLanguage: metadata.homeLanguage,
+      schoolType: '',
+      diagnosedConditions: [],
+      videoUrl: metadata.videoUrl,
+    };
+    setParentMetadata(clinicianMetadata);
+
+    // Calculate score directly from answers
+    const questionWeights = getQuestionWeights('clinician');
+    const answerArray: Answer[] = Object.entries(answers).map(([questionId, value]) => ({
+      questionId,
+      value,
+    }));
+
+    const hasFamilyHistory = answers['par_20'] === 'always';
+    const result = calculateScore(answerArray, questionWeights, hasFamilyHistory, undefined);
+    
+    // Calculate fused score (no video prediction for RAG lookup)
+    const fusedScore = calculateFusedScore(result.normalizedScore, null, 0.7);
+    result.fusedScore = fusedScore;
+    const fusedSeverity = getSeverityFromScore(fusedScore);
+    result.severity = fusedSeverity.level as ScoringResult['severity'];
+    result.severityLabel = fusedSeverity.label;
+    
+    setScoringResult(result);
+
+    // Save assessment data
+    if (user) {
+      await saveAssessmentData(
+        user.email || '',
+        'clinician',
+        patientId,
+        clinicianMetadata,
+        null,
+        answers,
+        result.normalizedScore,
+        null,
+        Math.round(fusedScore)
+      );
+    }
+
+    // Go directly to results
+    setAppState('results');
+  };
+
+  const handleManualEntry = () => {
+    setAppState('excel-upload');
   };
 
   const handleExcelComplete = (answers: Record<string, AnswerValue>, data: Record<string, any> | null, skipped: boolean) => {
@@ -227,7 +293,7 @@ export default function Index() {
   const handleStartNewAssessment = () => {
     // Allow user to retake assessment from dashboard
     if (selectedRole === 'clinician') {
-      setAppState('excel-upload');
+      setAppState('report-lookup');
     } else {
       setAppState('questionnaire');
     }
@@ -335,10 +401,18 @@ export default function Index() {
         />
       )}
 
+      {appState === 'report-lookup' && selectedRole === 'clinician' && (
+        <ReportLookup
+          onReportFound={handleReportFound}
+          onBack={() => setAppState('patient-id')}
+          onManualEntry={handleManualEntry}
+        />
+      )}
+
       {appState === 'excel-upload' && selectedRole === 'clinician' && (
         <ExcelUpload
           onComplete={handleExcelComplete}
-          onBack={() => setAppState('patient-id')}
+          onBack={() => setAppState('report-lookup')}
         />
       )}
 
@@ -347,7 +421,7 @@ export default function Index() {
           role={selectedRole}
           questions={selectedRole === 'individual' ? individualQuestions : parentQuestions}
           onComplete={handleQuestionnaireComplete}
-          onBack={() => selectedRole === 'clinician' ? setAppState('excel-upload') : setAppState('patient-id')}
+          onBack={() => selectedRole === 'clinician' ? setAppState('report-lookup') : setAppState('patient-id')}
           preFilledAnswers={excelAnswers}
           patientId={patientId}
           existingChildData={hasExistingData ? assessmentData?.child_data as unknown as ParentMetadata : undefined}
