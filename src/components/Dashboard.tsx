@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Download, Phone, Gamepad2 } from 'lucide-react';
+import { Calendar, Download, Phone, Gamepad2, ClipboardCheck } from 'lucide-react';
 import { ScoringResult, getScheduleComplexity } from '@/utils/scoring';
 import { ParentMetadata } from '@/data/questionBanks';
 import jsPDF from 'jspdf';
@@ -24,9 +24,10 @@ interface DashboardProps {
   metadata?: ParentMetadata;
   onNavigateToCalmZone: () => void;
   userName?: string;
+  onStartAssessment?: () => void;
 }
 
-export default function Dashboard({ role, result, metadata, onNavigateToCalmZone, userName = 'User' }: DashboardProps) {
+export default function Dashboard({ role, result, metadata, onNavigateToCalmZone, userName = 'User', onStartAssessment }: DashboardProps) {
   const schedule = getScheduleComplexity(result.severity);
   const { addEntry, history, getTrend } = useProgressTracking();
   const [showGames, setShowGames] = useState(false);
@@ -211,9 +212,18 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
               {role === 'parent' && `${metadata?.childName || 'Child'}'s Dashboard`}
               {role === 'clinician' && 'Clinical Dashboard'}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-3">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
+            {onStartAssessment && (
+              <Button 
+                onClick={onStartAssessment}
+                className="bg-bright-blue hover:bg-bright-blue/90"
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Attend Assessment
+              </Button>
+            )}
           </div>
           
           <div className="flex flex-wrap gap-3">
