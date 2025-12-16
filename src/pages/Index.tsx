@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Auth } from '@/components/Auth';
 import RoleSelection from '@/components/RoleSelection';
 import PatientIdEntry from '@/components/PatientIdEntry';
-import ExcelUpload from '@/components/ExcelUpload';
+
 import ReportLookup from '@/components/ReportLookup';
 import Questionnaire from '@/components/Questionnaire';
 import ResultModal from '@/components/ResultModal';
@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type AppState = 'role-selection' | 'patient-id' | 'report-lookup' | 'excel-upload' | 'questionnaire' | 'results' | 'dashboard' | 'calm-zone';
+type AppState = 'role-selection' | 'patient-id' | 'report-lookup' | 'questionnaire' | 'results' | 'dashboard' | 'calm-zone';
 type Role = 'individual' | 'parent' | 'clinician';
 
 export default function Index() {
@@ -233,16 +233,6 @@ export default function Index() {
     setAppState('results');
   };
 
-  const handleManualEntry = () => {
-    setAppState('excel-upload');
-  };
-
-  const handleExcelComplete = (answers: Record<string, AnswerValue>, data: Record<string, any> | null, skipped: boolean) => {
-    setExcelAnswers(answers);
-    setExcelData(data);
-    setAppState('questionnaire');
-  };
-
   const handleQuestionnaireComplete = async (answers: Record<string, AnswerValue>, metadata?: any) => {
     if ((selectedRole === 'parent' || selectedRole === 'clinician') && metadata) {
       setParentMetadata(metadata);
@@ -404,17 +394,9 @@ export default function Index() {
       {appState === 'report-lookup' && selectedRole === 'clinician' && (
         <ReportLookup
           onReportFound={handleReportFound}
-          onBack={() => setAppState('patient-id')}
-          onManualEntry={handleManualEntry}
         />
       )}
 
-      {appState === 'excel-upload' && selectedRole === 'clinician' && (
-        <ExcelUpload
-          onComplete={handleExcelComplete}
-          onBack={() => setAppState('report-lookup')}
-        />
-      )}
 
       {appState === 'questionnaire' && selectedRole && (
         <Questionnaire
