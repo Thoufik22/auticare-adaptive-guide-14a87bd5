@@ -25,23 +25,25 @@ interface DashboardProps {
   onNavigateToCalmZone: () => void;
   userName?: string;
   onStartAssessment?: () => void;
+  patientName?: string;
 }
 
-export default function Dashboard({ role, result, metadata, onNavigateToCalmZone, userName = 'User', onStartAssessment }: DashboardProps) {
-  const schedule = getScheduleComplexity(result.severity);
+export default function Dashboard({ role, result, metadata, onNavigateToCalmZone, userName = 'User', onStartAssessment, patientName }: DashboardProps) {
+  const severity = result?.severity || 'mild';
+  const schedule = getScheduleComplexity(severity);
   const { addEntry, history, getTrend } = useProgressTracking();
   const [showGames, setShowGames] = useState(false);
   
-  const severityColors = {
+  const severityColors: Record<string, string> = {
     low: 'mint',
     mild: 'bright-blue',
     moderate: 'lavender',
     high: 'coral',
   };
 
-  const accentColor = severityColors[result.severity];
+  const accentColor = severityColors[severity] || 'bright-blue';
 
-  const tasks = generateTasks(result.severity, schedule.taskCount);
+  const tasks = generateTasks(severity, schedule.taskCount);
   const trend = getTrend();
 
   useEffect(() => {
@@ -204,10 +206,15 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-8">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold mb-1">
               {userName} - {role === 'individual' ? 'Individual' : role === 'parent' ? 'Parent/Caregiver' : 'Clinical Guardian'}
             </h1>
-            <p className="text-lg text-muted-foreground mb-1">
+            {role === 'clinician' && patientName && (
+              <p className="text-sm text-muted-foreground mb-1">
+                Patient: <span className="font-medium text-foreground">{patientName}</span>
+              </p>
+            )}
+            <p className="text-base text-muted-foreground mb-1">
               {role === 'individual' && 'My Dashboard'}
               {role === 'parent' && `${metadata?.childName || 'Child'}'s Dashboard`}
               {role === 'clinician' && 'Clinical Dashboard'}
@@ -227,7 +234,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
           </div>
           
           <div className="flex flex-wrap gap-3">
-            {result.normalizedScore > 70 && (
+            {(result?.normalizedScore || 0) > 70 && (
               <Button 
                 variant="outline" 
                 className="bg-lavender/10 border-lavender hover:bg-lavender/20"
@@ -241,7 +248,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
               <Download className="w-4 h-4 mr-2" />
               Download Report
             </Button>
-            {result.severity === 'high' && (
+            {severity === 'high' && (
               <Button className="bg-coral hover:bg-coral/90">
                 <Phone className="w-4 h-4 mr-2" />
                 Contact Clinician
@@ -259,13 +266,13 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
                 <CardDescription>Based on your recent evaluation</CardDescription>
               </div>
               <div className={`text-4xl md:text-5xl font-bold text-${accentColor}`}>
-                {result.normalizedScore}
+                {result?.normalizedScore || 0}
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <Badge className={`bg-${accentColor} text-${accentColor}-foreground text-base md:text-lg px-4 py-2`}>
-              {result.severityLabel}
+              {result?.severityLabel || 'Assessment Pending'}
             </Badge>
           </CardContent>
         </Card>
@@ -346,7 +353,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Reminders />
           <Timer />
-          <CommunityResources severity={result.severity} />
+          <CommunityResources severity={severity} />
         </div>
 
         {/* Rewards System */}
@@ -356,7 +363,7 @@ export default function Dashboard({ role, result, metadata, onNavigateToCalmZone
   );
 }
 
-function generateTasks(severity: ScoringResult['severity'], count: number) {
+function generateTasks(severity: string, count: number) {
   const taskPool: Array<{
     title: string;
     description: string;
@@ -450,8 +457,8 @@ function generateTasks(severity: ScoringResult['severity'], count: number) {
   return taskPool.slice(0, count);
 }
 
-function getRecommendations(severity: ScoringResult['severity']): string[] {
-  const recommendations = {
+function getRecommendations(severity: string): string[] {
+  const recommendations: Record<string, string[]> = {
     low: [
       'Continue monitoring development',
       'Maintain supportive routines',
@@ -474,5 +481,5 @@ function getRecommendations(severity: ScoringResult['severity']): string[] {
     ],
   };
 
-  return recommendations[severity];
+  return recommendations[severity] || recommendations['mild'];
 }

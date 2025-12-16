@@ -427,6 +427,7 @@ export default function Index() {
           onNavigateToCalmZone={handleNavigateToCalmZone}
           userName={user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
           onStartAssessment={handleStartNewAssessment}
+          patientName={selectedRole === 'clinician' ? parentMetadata?.childName : undefined}
         />
       )}
 
