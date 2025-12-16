@@ -202,5 +202,12 @@ export function getScheduleComplexity(severity: ScoringResult['severity']): {
         taskDuration: '5-12 min',
         description: 'Short microtasks with frequent breaks and clinician contact',
       };
+    default:
+      return {
+        level: 'Medium',
+        taskCount: 3,
+        taskDuration: '15-20 min',
+        description: 'Structured tasks with visual timers',
+      };
   }
 }
